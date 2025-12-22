@@ -280,12 +280,13 @@ public:
                         std::this_thread::sleep_for(1s);
                         goto retry;
                     }
+                    operation->PostProcess();
 
                     if (progress)
                         ++*progress;
                 }
-                for (auto&& operation : operations)
-                    operation->PostProcess();
+                //for (auto&& operation : operations)
+                //    operation->PostProcess();
                 if (progress)
                     return;
                 std::this_thread::sleep_for(1s);
