@@ -201,9 +201,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
         filter("Dungeon", Filters.Dungeon);
         filter("Non-Event", Filters.NonEvent);
 
-        if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, I::GetStyle().FramePadding))
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, I::GetStyle().ItemSpacing / 2))
-        if (scoped::Table("Table", 5, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_Hideable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Sortable))
+        if (scoped::TableList("Table", 5))
         {
             I::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 50, (ImGuiID)EventSort::ID);
             I::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch, 0, (ImGuiID)EventSort::Map);

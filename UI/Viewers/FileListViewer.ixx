@@ -220,9 +220,8 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
                     ScrollTo = viewer->GetCurrent();
             I::SetItemTooltip("Locate:\n%s", viewer ? viewer->Title().c_str() : "<no file selected>");
         }
-        if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, I::GetStyle().FramePadding))
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, I::GetStyle().ItemSpacing / 2))
-        if (scoped::Table("Table", 18, ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_Hideable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Sortable))
+
+        if (scoped::TableList("Table", 18))
         {
             I::TableSetupColumn("File ID", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth, 60, (ImGuiID)FileSort::ID);
             I::TableSetupColumn("##Stream", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHeaderWidth | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoSort, I::GetTextLineHeight());

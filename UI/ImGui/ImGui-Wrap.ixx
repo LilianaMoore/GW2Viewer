@@ -77,6 +77,19 @@ struct TableBackgroundChannel : ScopeWrapper<TableBackgroundChannel>
     TableBackgroundChannel() noexcept : ScopeWrapper(true) { ImGui::TablePushBackgroundChannel(); }
     static void dtor() noexcept { ImGui::TablePopBackgroundChannel(); }
 };
+struct TableList : ScopeWrapper<TableList, true>
+{
+    TableList(char const* str_id, int columns, ImGuiTableFlags flags = 0, ImVec2 outer_size = { }, float inner_width = 0.0f) : ScopeWrapper((
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().FramePadding),
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImGui::GetStyle().ItemSpacing / 2),
+        ImGui::BeginTable(str_id, columns, flags | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_Hideable | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Sortable, outer_size, inner_width))) { }
+    void dtor() const noexcept
+    {
+        if (ok_)
+            ImGui::EndTable();
+        ImGui::PopStyleVar(2);
+    }
+};
 struct DisableMarkup : ScopeWrapper<DisableMarkup>
 {
     DisableMarkup() noexcept;
