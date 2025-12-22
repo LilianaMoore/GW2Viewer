@@ -307,6 +307,14 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
                 UpdateSearch();
             }
             Controls::AsyncProgressBar(AsyncFilter);
+            {
+                std::shared_lock __(Lock);
+                auto const count = ContentFilter.GetFilteredObjectsCount();
+                auto rect = I::LastRect();
+                rect.Max.x -= I::GetStyle().FramePadding.x;
+                I::AlignTextToFramePadding();
+                I::RightAlignedText(rect, "<c=#8>{} result{}</c>", count, count != 1 ? "s" : "");
+            }
 
             I::TableNextColumn();
             if (I::Button(ICON_FA_GEAR))

@@ -175,6 +175,7 @@
     <ClCompile Include="UI\Controls\Controls-FilteredComboBox.ixx" />
     <ClCompile Include="UI\Controls\Controls-HexViewer.ixx" />
     <ClCompile Include="UI\Controls\Controls-MapLayout.ixx" />
+    <ClCompile Include="UI\Controls\Controls-SearchInput.ixx" />
     <ClCompile Include="UI\Controls\Controls-Texture.ixx" />
     <ClCompile Include="UI\Controls\Controls-VoiceButton.ixx" />
     <ClCompile Include="UI\Controls\Controls.cpp" />

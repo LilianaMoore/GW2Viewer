@@ -171,10 +171,8 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
 
     void Draw() override
     {
-        I::SetNextItemWidth(-(I::GetStyle().ItemSpacing.x + 60));
-        if (I::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search...", &FilterString))
+        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
             UpdateSearch();
-        Controls::AsyncProgressBar(AsyncFilter);
         I::SameLine();
         if (scoped::Disabled(!FilterID))
         {

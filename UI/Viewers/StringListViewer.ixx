@@ -181,12 +181,10 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
 
     void Draw() override
     {
-        I::SetNextItemWidth(-(I::GetStyle().ItemSpacing.x + I::GetFrameHeight() + I::GetFrameHeight() + I::GetStyle().ItemSpacing.x + 60));
         if (static bool focus = true; std::exchange(focus, false))
             I::SetKeyboardFocusHere();
-        if (I::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search...", &FilterString))
+        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
             UpdateSearch();
-        Controls::AsyncProgressBar(AsyncFilter);
         I::SameLine();
         static bool trackClipboard = false;
         static auto trackClipboardCooldown = Time::FrameStart;
