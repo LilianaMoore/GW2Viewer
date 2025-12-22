@@ -203,8 +203,8 @@ void MapLayout::Initialize()
             for (ContentObject const& mapLayoutOutpost : mapLayoutMap["Outpost->Name"])
                 fillSources(AddIcon(961377, convertPosition(mapLayoutOutpost["WorldPosition"]), 32)).AddSource(mapLayoutOutpost);
 
-            for (ContentObject const& mapLayoutOrrTemple : mapLayoutMap["OrrTemple->Name"])
-                fillSources(AddIcon(347219, convertPosition(mapLayoutOrrTemple["WorldPosition"]), 32)).AddSource(mapLayoutOrrTemple);
+            for (ContentObject const& mapLayoutGodShrine : mapLayoutMap["GodShrine->Name"])
+                fillSources(AddIcon(347219, convertPosition(mapLayoutGodShrine["WorldPosition"]), 32)).AddSource(mapLayoutGodShrine);
 
             for (ContentObject const& mapLayoutInteriorColor : mapLayoutMap["InteriorColor->Name"])
             {
