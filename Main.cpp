@@ -81,6 +81,10 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
             return 0;
         break;
+    case WM_CLOSE:
+        if (!G::Config.Save())
+            return 0;
+        break;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -180,7 +184,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     }
 
     G::UI.Unload();
-    G::Config.Save();
+    //G::Config.Save();
 
     G::Game.Texture.StopLoading();
 

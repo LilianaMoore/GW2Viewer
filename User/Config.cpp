@@ -7,19 +7,20 @@ static std::filesystem::path const configPath = R"(.\config.json)";
 namespace GW2Viewer::User
 {
 
-void Config::Load()
+bool Config::Load()
 {
     auto contents = (std::stringstream() << std::ifstream(configPath).rdbuf()).str();
     if (contents.empty())
-        return;
+        return true;
     from_json(json::parse(contents, nullptr, false), *this);
     FinishLoading();
     G::Notifications.AddTimed(1s, {
         .Type = GW2Viewer::UI::Notification::Types::Success,
         .Text = "Config loaded.",
     });
+    return true;
 }
-void Config::Save()
+bool Config::Save()
 {
     std::erase_if(ContentNamespaceNames, [](auto const& pair) { return pair.second.empty(); });
     std::erase_if(ContentObjectNames, [](auto const& pair) { return pair.second.empty(); });
@@ -44,6 +45,7 @@ void Config::Save()
         .Type = GW2Viewer::UI::Notification::Types::Success,
         .Text = "Config saved.",
     });
+    return true;
 }
 
 }

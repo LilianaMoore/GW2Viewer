@@ -15,8 +15,8 @@ export namespace GW2Viewer::User
 
 struct Config
 {
-    void Load();
-    void Save();
+    bool Load();
+    bool Save();
 
     template<typename T>
     struct Bookmark
