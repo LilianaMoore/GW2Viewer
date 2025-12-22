@@ -130,7 +130,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             {
                 auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
                 std::shared_lock _(Content::conversationsLock);
-                data.assign_range(Content::conversations | std::views::filter([limits](auto const& pair) { return (int32)pair.second.UID >= limits.first && (int32)pair.second.UID <= limits.second; }) | std::views::keys);
+                data.assign_range(Content::conversations | std::views::filter([limits](auto const& pair) { return (int32)pair.first >= limits.first && (int32)pair.first <= limits.second || (int32)pair.second.UID >= limits.first && (int32)pair.second.UID <= limits.second; }) | std::views::keys);
             }
             CHECK_ASYNC;
             SortList(context, data, sort, invert);
