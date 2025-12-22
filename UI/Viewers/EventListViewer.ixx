@@ -211,41 +211,38 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
             I::TableHeadersRow();
             HandleTableSort(Sort, SortInvert);
 
-            [&](auto _) -> void
+            std::scoped_lock __(Lock);
+            ImGuiListClipper clipper;
+            clipper.Begin(FilteredList.size());
+            while (clipper.Step())
             {
-                std::scoped_lock __(Lock);
-                ImGuiListClipper clipper;
-                clipper.Begin(FilteredList.size());
-                while (clipper.Step())
+                for (auto eventID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
                 {
-                    for (auto eventID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                    {
-                        scoped::WithID(eventID.Map << 17 | eventID.UID);
+                    scoped::WithID(eventID.Map << 17 | eventID.UID);
 
-                        std::scoped_lock ___(Content::eventsLock);
-                        auto& event = Content::events.at(eventID);
-                        auto const* currentViewer = G::UI.GetCurrentViewer<EventViewer>();
-                        I::TableNextRow();
+                    std::scoped_lock ___(Content::eventsLock);
+                    auto& event = Content::events.at(eventID);
+                    auto const* currentViewer = G::UI.GetCurrentViewer<EventViewer>();
+                    I::TableNextRow();
 
-                        I::TableNextColumn();
-                        I::Selectable(std::format("{}", eventID.UID).c_str(), currentViewer && currentViewer->EventID == eventID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
-                        if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                            EventViewer::Open(eventID, { .MouseButton = button });
+                    I::TableNextColumn();
+                    I::Selectable(std::format("{}", eventID.UID).c_str(), currentViewer && currentViewer->EventID == eventID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                        EventViewer::Open(eventID, { .MouseButton = button });
 
-                        I::TableNextColumn();
-                        I::TextUnformatted(Utils::Encoding::ToUTF8(event.Map()).c_str());
+                    I::TableNextColumn();
+                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Map()).c_str());
 
-                        I::TableNextColumn();
-                        I::TextUnformatted(event.Type().c_str());
+                    I::TableNextColumn();
+                    I::TextUnformatted(event.Type().c_str());
 
-                        I::TableNextColumn();
-                        I::TextUnformatted(Utils::Encoding::ToUTF8(event.Title()).c_str());
+                    I::TableNextColumn();
+                    I::TextUnformatted(Utils::Encoding::ToUTF8(event.Title()).c_str());
 
-                        I::TableNextColumn();
-                        Controls::Encounter({ event.EncounteredTime() });
-                    }
+                    I::TableNextColumn();
+                    Controls::Encounter({ event.EncounteredTime() });
                 }
-            }(0);
+            }
         }
     }
 };

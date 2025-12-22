@@ -162,44 +162,41 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             I::TableHeadersRow();
             HandleTableSort(Sort, SortInvert);
 
-            [&](auto _) -> void
+            std::scoped_lock __(Lock);
+            ImGuiListClipper clipper;
+            clipper.Begin(FilteredList.size());
+            while (clipper.Step())
             {
-                std::scoped_lock __(Lock);
-                ImGuiListClipper clipper;
-                clipper.Begin(FilteredList.size());
-                while (clipper.Step())
+                for (auto conversationID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
                 {
-                    for (auto conversationID : std::span(FilteredList.begin() + clipper.DisplayStart, FilteredList.begin() + clipper.DisplayEnd))
-                    {
-                        scoped::WithID(conversationID);
+                    scoped::WithID(conversationID);
 
-                        std::scoped_lock ___(Content::conversationsLock);
-                        auto& conversation = Content::conversations.at(conversationID);
-                        auto const* currentViewer = G::UI.GetCurrentViewer<ConversationViewer>();
-                        I::TableNextRow();
+                    std::scoped_lock ___(Content::conversationsLock);
+                    auto& conversation = Content::conversations.at(conversationID);
+                    auto const* currentViewer = G::UI.GetCurrentViewer<ConversationViewer>();
+                    I::TableNextRow();
 
-                        I::TableNextColumn();
-                        I::Selectable(std::format("  <c=#4>{}</c>", conversationID).c_str(), currentViewer && currentViewer->ConversationID == conversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
+                    I::TableNextColumn();
+                    I::Selectable(std::format("  <c=#4>{}</c>", conversationID).c_str(), currentViewer && currentViewer->ConversationID == conversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
-                        I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, conversation.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                    I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, conversation.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
 
-                        if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
-                            ConversationViewer::Open(conversationID, { .MouseButton = button });
+                    if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
+                        ConversationViewer::Open(conversationID, { .MouseButton = button });
 
-                        I::TableNextColumn();
-                        I::Text("<c=#8>%u</c>", conversation.UID);
+                    I::TableNextColumn();
+                    I::Text("<c=#8>%u</c>", conversation.UID);
 
-                        I::TableNextColumn();
-                        I::TextUnformatted(conversation.StartingSpeakerName().c_str());
+                    I::TableNextColumn();
+                    I::TextUnformatted(conversation.StartingSpeakerName().c_str());
 
-                        I::TableNextColumn();
-                        I::TextUnformatted(conversation.StartingStateText().c_str());
+                    I::TableNextColumn();
+                    I::TextUnformatted(conversation.StartingStateText().c_str());
 
-                        I::TableNextColumn();
-                        Controls::Encounter(conversation.Encounter);
-                    }
+                    I::TableNextColumn();
+                    Controls::Encounter(conversation.Encounter);
                 }
-            }(0);
+            }
         }
     }
 };
