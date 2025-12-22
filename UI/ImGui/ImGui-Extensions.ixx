@@ -104,7 +104,36 @@ auto InputTextUTF8(char const* label, auto& container, auto const& key, std::wst
         return true;
     }
     return false;
-};
+}
+
+void RightAlignedText(ImRect rect, std::string_view text)
+{
+    RenderTextClipped(rect.Min + ImVec2(0, GetCurrentWindow()->DC.CurrLineTextBaseOffset), rect.Max, text.data(), text.data() + text.size(), nullptr, { 1.0f, 0.0f }, &rect);
+}
+void RightAlignedText(ImVec2 size, std::string_view text)
+{
+    auto const avail = GetContentRegionAvail();
+    RightAlignedText(ImRect { GetCursorScreenPos(), GetCursorScreenPos() + CalcItemSize(size, avail.x, avail.y) }, text);
+}
+void RightAlignedText(std::string_view text)
+{
+    RightAlignedText(ImVec2(), text);
+}
+template<typename... Args>
+void RightAlignedText(ImRect rect, std::format_string<Args...> const format, Args&&... args)
+{
+    RightAlignedText(rect, std::format(format, std::forward<Args>(args)...));
+}
+template<typename... Args>
+void RightAlignedText(ImVec2 size, std::format_string<Args...> const format, Args&&... args)
+{
+    RightAlignedText(size, std::format(format, std::forward<Args>(args)...));
+}
+template<typename... Args>
+void RightAlignedText(std::format_string<Args...> const format, Args&&... args)
+{
+    RightAlignedText(ImVec2(), format, std::forward<Args>(args)...);
+}
 
 std::string StripMarkup(std::string const& str);
 std::wstring StripMarkup(std::wstring const& str)

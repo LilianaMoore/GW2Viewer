@@ -4,6 +4,7 @@ module;
 
 export module GW2Viewer.UI.ImGui:Wrap;
 import :Core;
+import std;
 
 export namespace dear
 {
@@ -89,6 +90,20 @@ struct TableList : ScopeWrapper<TableList, true>
             ImGui::EndTable();
         ImGui::PopStyleVar(2);
     }
+};
+struct RightAligned : ScopeWrapper<RightAligned>
+{
+    RightAligned(void const* id) noexcept : ScopeWrapper(ImGui::BeginTable(std::format("##RightAligned-{}", (uintptr_t)id).c_str(), 2, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoClip, { -FLT_MIN, 0 }))
+    {
+        if (ok_)
+        {
+            ImGui::TableSetupColumn("Fill", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+        }
+    }
+    static void dtor() noexcept { ImGui::EndTable(); }
 };
 struct DisableMarkup : ScopeWrapper<DisableMarkup>
 {
