@@ -36,7 +36,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
 
     static auto SortList(Utils::Async::Context context, std::vector<uint32>& data, ConversationSort sort, bool invert)
     {
-        std::scoped_lock _(Content::conversationsLock);
+        std::shared_lock _(Content::conversationsLock);
         switch (sort)
         {
             using Utils::Sort::ComplexSort;
@@ -108,7 +108,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             CHECK_ASYNC;
             if (textSearch)
             {
-                std::scoped_lock _(Content::conversationsLock);
+                std::shared_lock _(Content::conversationsLock);
                 std::wstring const query(std::from_range, Utils::Encoding::FromUTF8(string) | std::views::transform(toupper));
                 data.assign_range(Content::conversations | std::views::keys | std::views::filter([&query](uint32 id)
                 {
@@ -129,7 +129,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             else
             {
                 auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
-                std::scoped_lock _(Content::conversationsLock);
+                std::shared_lock _(Content::conversationsLock);
                 data.assign_range(Content::conversations | std::views::filter([limits](auto const& pair) { return (int32)pair.second.UID >= limits.first && (int32)pair.second.UID <= limits.second; }) | std::views::keys);
             }
             CHECK_ASYNC;
@@ -162,7 +162,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
             I::TableHeadersRow();
             HandleTableSort(Sort, SortInvert);
 
-            std::scoped_lock __(Lock);
+            std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
@@ -171,7 +171,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                 {
                     scoped::WithID(conversationID);
 
-                    std::scoped_lock ___(Content::conversationsLock);
+                    std::shared_lock ___(Content::conversationsLock);
                     auto& conversation = Content::conversations.at(conversationID);
                     auto const* currentViewer = G::UI.GetCurrentViewer<ConversationViewer>();
                     I::TableNextRow();

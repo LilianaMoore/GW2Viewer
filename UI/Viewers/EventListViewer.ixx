@@ -37,7 +37,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
 
     static void SortList(Utils::Async::Context context, std::vector<Content::EventID>& data, EventSort sort, bool invert)
     {
-        std::scoped_lock _(Content::eventsLock);
+        std::shared_lock _(Content::eventsLock);
         switch (sort)
         {
             using Utils::Sort::ComplexSort;
@@ -109,18 +109,18 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
             if (!textSearch)
             {
                 auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
-                std::scoped_lock _(Content::eventsLock);
+                std::shared_lock _(Content::eventsLock);
                 data.assign_range(Content::events | std::views::keys | std::views::filter([limits](Content::EventID id) { return (int32)id.UID >= limits.first && (int32)id.UID <= limits.second; }));
             }
             else
             {
-                std::scoped_lock _(Content::eventsLock);
+                std::shared_lock _(Content::eventsLock);
                 data.assign_range(Content::events | std::views::keys);
             }
             CHECK_ASYNC;
             if (!(filters.Normal && filters.Group && filters.Meta && filters.Dungeon && filters.NonEvent))
             {
-                std::scoped_lock _(Content::eventsLock);
+                std::shared_lock _(Content::eventsLock);
                 std::erase_if(data, [&filters](Content::EventID id)
                 {
                     auto const& event = Content::events.at(id);
@@ -136,7 +136,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
             CHECK_ASYNC;
             if (textSearch)
             {
-                std::scoped_lock _(Content::eventsLock);
+                std::shared_lock _(Content::eventsLock);
                 std::wstring const query(std::from_range, Utils::Encoding::FromUTF8(string) | std::views::transform(toupper));
                 std::erase_if(data, [&query](Content::EventID id)
                 {
@@ -211,7 +211,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
             I::TableHeadersRow();
             HandleTableSort(Sort, SortInvert);
 
-            std::scoped_lock __(Lock);
+            std::shared_lock __(Lock);
             ImGuiListClipper clipper;
             clipper.Begin(FilteredList.size());
             while (clipper.Step())
@@ -220,7 +220,7 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
                 {
                     scoped::WithID(eventID.Map << 17 | eventID.UID);
 
-                    std::scoped_lock ___(Content::eventsLock);
+                    std::shared_lock ___(Content::eventsLock);
                     auto& event = Content::events.at(eventID);
                     auto const* currentViewer = G::UI.GetCurrentViewer<EventViewer>();
                     I::TableNextRow();
