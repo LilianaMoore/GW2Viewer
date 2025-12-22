@@ -190,7 +190,7 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
                         I::TableNextColumn();
                         I::Selectable(std::format("  <c=#4>{}</c>", conversationID).c_str(), currentViewer && currentViewer->ConversationID == conversationID ? ImGuiTreeNodeFlags_Selected : 0, ImGuiSelectableFlags_SpanAllColumns);
 
-                        I::GetWindowDrawList()->AddRectFilled(I::GetCurrentContext()->LastItemData.Rect.Min, { I::GetCurrentContext()->LastItemData.Rect.Min.x + 4, I::GetCurrentContext()->LastItemData.Rect.Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, conversation.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
+                        I::GetWindowDrawList()->AddRectFilled(I::LastRect().Min, { I::LastRect().Min.x + 4, I::LastRect().Max.y }, IM_COL32(0xFF, 0x00, 0x00, (byte)std::lerp(0xFF, 0x00, conversation.GetCompleteness() / (float)Content::Conversation::COMPLETENESS_COMPLETE)));
 
                         if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle))
                             ConversationViewer::Open(conversationID, { .MouseButton = button });

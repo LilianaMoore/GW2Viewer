@@ -10,13 +10,13 @@ void AsyncProgressBar(Utils::Async::Scheduler const& scheduler)
 {
     if (auto context = scheduler.Current())
     {
-        I::SetCursorScreenPos(I::GetCurrentContext()->LastItemData.Rect.Min);
+        I::SetCursorScreenPos(I::LastRect().Min);
         if (scoped::WithColorVar(ImGuiCol_FrameBg, 0))
         if (scoped::WithColorVar(ImGuiCol_Border, 0))
         if (scoped::WithColorVar(ImGuiCol_BorderShadow, 0))
         if (scoped::WithColorVar(ImGuiCol_Text, 0))
         if (scoped::WithColorVar(ImGuiCol_PlotHistogram, 0x20FFFFFF))
-            I::ProgressBar(context.IsIndeterminate() ? -I::GetTime() : context.Progress(), I::GetCurrentContext()->LastItemData.Rect.GetSize());
+            I::ProgressBar(context.IsIndeterminate() ? -I::GetTime() : context.Progress(), I::LastRect().GetSize());
     }
 }
 

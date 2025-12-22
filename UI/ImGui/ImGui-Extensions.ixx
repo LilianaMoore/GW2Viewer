@@ -51,6 +51,10 @@ ImGuiID GetSharedScopeID(std::string_view str) { return GetIDWithSeed(str.data()
 
 ImVec2 GetFrameSquare() { return { GetFrameHeight(), GetFrameHeight() }; }
 
+auto& LastItem() { return GetCurrentContext()->LastItemData; }
+ImGuiID LastID() { return LastItem().ID; }
+ImRect LastRect() { return LastItem().Rect; }
+
 bool IsDisabled() { return GetCurrentContext()->CurrentItemFlags & ImGuiItemFlags_Disabled; }
 bool IsEnabled() { return !IsDisabled(); }
 

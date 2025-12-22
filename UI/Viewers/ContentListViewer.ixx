@@ -312,7 +312,7 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
             if (I::Button(ICON_FA_GEAR))
                 I::OpenPopup("ViewerConfig");
 
-            I::SetNextWindowPos(I::GetCurrentContext()->LastItemData.Rect.GetBR(), ImGuiCond_Always, { 1, 0 });
+            I::SetNextWindowPos(I::LastRect().GetBR(), ImGuiCond_Always, { 1, 0 });
             if (scoped::Popup("ViewerConfig"))
             {
                 I::Checkbox("Auto-expand namespaces if ", &ViewerConfig.AutoExpandSearchResults);
@@ -617,8 +617,8 @@ private:
                 if (m_drawing && ViewerConfig.DrawTreeLines && I::GetCursorScreenPos().y <= window->ClipRect.Min.y)
                 {
                     ImVec2 const pos { table->Columns[0].WorkMinX + window->DC.Indent.x - table->HostIndentX, I::GetCursorScreenPos().y - I::GetFrameHeight() };
-                    I::GetCurrentContext()->LastItemData.ID = id;
-                    I::GetCurrentContext()->LastItemData.NavRect = { pos, pos + I::GetFrameSquare() };
+                    I::LastItem().ID = id;
+                    I::LastItem().NavRect = { pos, pos + I::GetFrameSquare() };
                     I::TreeNodeStoreStackData(flags, pos.x);
                 }
 
@@ -916,7 +916,7 @@ private:
                 context.BeginItem();
                 open = I::TreeNodeEx(&entry, flags, "") && canOpen;
                 context.CommitItem();
-                auto const rect = I::GetCurrentContext()->LastItemData.Rect;
+                auto const rect = I::LastRect();
 
                 if (auto const button = I::IsItemMouseClickedWith(ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle) | context.OpenObjectButton)
                     ContentViewer::Open(entry, { .MouseButton = button });

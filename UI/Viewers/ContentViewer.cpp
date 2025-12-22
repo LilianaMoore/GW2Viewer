@@ -99,7 +99,7 @@ void ContentViewer::Draw()
                 if (scoped::Font(G::UI.Fonts.Monospace))
                     I::InputTextEx("##Display Format", G::Tasks::ContentObjectDisplayFormat.GetDefault(), &typeInfo.DisplayFormat, { -FLT_MIN, std::max(I::GetFrameHeight(), I::GetStyle().FramePadding.y * 2 + std::min(focused ? FLT_MAX : I::GetTextLineHeight() * 1.5f, I::CalcTextSize(typeInfo.DisplayFormat.c_str()).y + (typeInfo.DisplayFormat.back() == '\n' ? I::GetTextLineHeight() : 0))) }, ImGuiInputTextFlags_Multiline);
                 focused &= I::GetIO().WantCaptureKeyboard || I::IsItemActiveAsInputText();
-                auto const rect = I::GetCurrentContext()->LastItemData.Rect;
+                auto const rect = I::LastRect();
                 retainFocus = false;
                 if (focused)
                 {
@@ -332,7 +332,7 @@ void ContentViewer::Draw()
 
                                     if (edit)
                                     {
-                                        editingSymbol = { G::Config.TreeContentStructLayout ? context.TreeLayoutStack : layoutStack, pointer.ParentPath, pointer.Symbol, I::GetCurrentContext()->LastItemData.Rect.GetBL(), I::GetCurrentContext()->LastItemData.Rect.GetTL(), false };
+                                        editingSymbol = { G::Config.TreeContentStructLayout ? context.TreeLayoutStack : layoutStack, pointer.ParentPath, pointer.Symbol, I::LastRect().GetBL(), I::LastRect().GetTL(), false };
                                         I::OpenPopup(popupChangeStructLayoutSymbol);
                                     }
                                 }
@@ -456,7 +456,7 @@ void ContentViewer::Draw()
 
                                     if (edit)
                                     {
-                                        editingSymbol = { G::Config.TreeContentStructLayout ? context.TreeLayoutStack : layoutStack, *frame.Path, &symbol, I::GetCurrentContext()->LastItemData.Rect.GetBL(), I::GetCurrentContext()->LastItemData.Rect.GetTL(), false };
+                                        editingSymbol = { G::Config.TreeContentStructLayout ? context.TreeLayoutStack : layoutStack, *frame.Path, &symbol, I::LastRect().GetBL(), I::LastRect().GetTL(), false };
                                         I::OpenPopup(popupChangeStructLayoutSymbol);
                                     }
                                 }
@@ -469,16 +469,16 @@ void ContentViewer::Draw()
                     uint32 const symbolAlignedSize = symbol.AlignedSize();
 
                     if (render && i + symbolSize > data.size())
-                        I::GetWindowDrawList()->AddRectFilled(cursor, I::GetCurrentContext()->LastItemData.Rect.GetBR(), 0x400000FF);
+                        I::GetWindowDrawList()->AddRectFilled(cursor, I::LastRect().GetBR(), 0x400000FF);
 
                     if (render && symbolSize != symbolAlignedSize && std::ranges::any_of(p + symbolSize, p + symbolAlignedSize, std::identity()))
-                        I::GetWindowDrawList()->AddRectFilled(cursor, I::GetCurrentContext()->LastItemData.Rect.GetBR(), 0x400080FF);
+                        I::GetWindowDrawList()->AddRectFilled(cursor, I::LastRect().GetBR(), 0x400080FF);
 
                     unmappedStart = i += symbolAlignedSize;
 
                     if (auto const traversal = symbol.GetTraversalInfo({ p, *context.Content, symbol, context.Draw }))
                     {
-                        if (render && I::IsMouseHoveringRect(cursor, I::GetCurrentContext()->LastItemData.Rect.GetBR()))
+                        if (render && I::IsMouseHoveringRect(cursor, I::LastRect().GetBR()))
                             highlightPointer = *traversal.Start;
 
                         auto const elements = std::span(*traversal.Start, context.FullData.data() + context.FullData.size()) | std::views::stride(traversal.Size) | std::views::take(traversal.ArrayCount.value_or(1)) | std::views::enumerate;
@@ -505,7 +505,7 @@ void ContentViewer::Draw()
                             }
                             else
                             {
-                                auto const rect = I::GetCurrentContext()->LastItemData.Rect;
+                                auto const rect = I::LastRect();
                                 I::SameLine(-1, 1);
                                 bool table = false;
                                 for (auto [index, element] : elements)
@@ -516,7 +516,7 @@ void ContentViewer::Draw()
                                         if (traversal.ArrayCount && !symbol.Table)
                                         {
                                             I::TextColored({ 1, 1, 1, 0.25f }, "[<c=#FFF>%u</c>]", index);
-                                            auto const text = I::GetCurrentContext()->LastItemData.Rect;
+                                            auto const text = I::LastRect();
                                             if (index)
                                                 I::GetWindowDrawList()->AddLine(
                                                     { (float)(int)((rect.Min.x + rect.Max.x) / 2) + 1, (float)(int)((text.Min.y + text.Max.y) / 2) },

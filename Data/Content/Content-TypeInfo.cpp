@@ -187,7 +187,7 @@ void TypeInfo::Symbol::DrawOptions(TypeInfo& typeInfo, LayoutStack const& layout
                     if (I::IsItemHovered())
                         I::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
 
-                    auto const rect = I::GetCurrentContext()->LastItemData.Rect;
+                    auto const rect = I::LastRect();
                     int const dragging = I::GetMousePos().y < rect.Min.y ? -1 : I::GetMousePos().y >= rect.Max.y ? 1 : 0;
                     if (I::IsItemActive() && !I::IsItemHovered() && dragging)
                         if (int const next = index + dragging; next >= 0 && next < pathList.size())
@@ -389,7 +389,7 @@ void TypeInfo::Symbol::Draw(byte const* data, DrawType draw, ContentObject const
             std::terminate();
         case DrawType::TableHeader:
         {
-            auto const rect = I::GetCurrentContext()->LastItemData.Rect;
+            auto const rect = I::LastRect();
             I::AlignTextToFramePadding();
             I::SetCursorPosY(I::GetCursorPosY() + I::GetCurrentWindow()->DC.CurrLineTextBaseOffset);
             I::TableHeader(I::TableGetColumnName());
