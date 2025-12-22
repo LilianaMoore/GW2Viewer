@@ -61,7 +61,8 @@ bool ContentNamespace::CustomNameMatchesSiblings(std::wstring_view custom) const
         if (auto const prevName = GetCustomName(*prev))
         {
             if (custom < *prevName && custom < trim(*prevName) && trim(custom) < *prevName && trim(custom) < trim(*prevName))
-                return false;
+                if (!prevName->starts_with(custom) && !custom.starts_with(*prevName))
+                    return false;
 
             break;
         }
@@ -71,7 +72,8 @@ bool ContentNamespace::CustomNameMatchesSiblings(std::wstring_view custom) const
         if (auto const nextName = GetCustomName(*next))
         {
             if (custom > *nextName && custom > trim(*nextName) && trim(custom) > *nextName && trim(custom) > trim(*nextName))
-                return false;
+                if (!nextName->starts_with(custom) && !custom.starts_with(*nextName))
+                    return false;
 
             break;
         }
