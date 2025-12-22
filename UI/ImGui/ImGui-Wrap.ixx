@@ -6,7 +6,28 @@ export module GW2Viewer.UI.ImGui:Wrap;
 import :Core;
 import std;
 
-export namespace dear
+namespace dear
+{
+
+template<typename Base>
+struct TableDockBase : ScopeWrapper<Base, true>
+{
+    TableDockBase(char const* str_id, int columns, ImVec2 size) : ScopeWrapper<Base, true>((
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2()),
+        ImGui::BeginTable(str_id, columns, ImGuiTableFlags_NoSavedSettings, size)))
+    {
+        if (this->ok_)
+            static_cast<Base*>(this)->ctor();
+    }
+    void dtor() const noexcept
+    {
+        if (this->ok_)
+            ImGui::EndTable();
+        ImGui::PopStyleVar(1);
+    }
+};
+
+export
 {
 
 using Window = Begin;
@@ -91,6 +112,34 @@ struct TableList : ScopeWrapper<TableList, true>
         ImGui::PopStyleVar(2);
     }
 };
+struct TableDockLeft : TableDockBase<TableDockLeft>
+{
+    TableDockLeft(char const* str_id, ImVec2 size = { -FLT_MIN, 0 }) noexcept : TableDockBase(str_id, 2, size) { }
+    static void ctor() noexcept
+    {
+        ImGui::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Fill", ImGuiTableColumnFlags_WidthStretch);
+    }
+};
+struct TableDockRight : TableDockBase<TableDockRight>
+{
+    TableDockRight(char const* str_id, ImVec2 size = { -FLT_MIN, 0 }) noexcept : TableDockBase(str_id, 2, size) { }
+    static void ctor() noexcept
+    {
+        ImGui::TableSetupColumn("Fill", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
+    }
+};
+struct TableDockLeftRight : TableDockBase<TableDockLeftRight>
+{
+    TableDockLeftRight(char const* str_id, ImVec2 size = { -FLT_MIN, 0 }) noexcept : TableDockBase(str_id, 3, size) { }
+    static void ctor() noexcept
+    {
+        ImGui::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("Fill", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
+    }
+};
 struct RightAligned : ScopeWrapper<RightAligned>
 {
     RightAligned(void const* id) noexcept : ScopeWrapper(ImGui::BeginTable(std::format("##RightAligned-{}", (uintptr_t)id).c_str(), 2, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoClip, { -FLT_MIN, 0 }))
@@ -110,5 +159,7 @@ struct DisableMarkup : ScopeWrapper<DisableMarkup>
     DisableMarkup() noexcept;
     static void dtor() noexcept;
 };
+
+}
 
 }

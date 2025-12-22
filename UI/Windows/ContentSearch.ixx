@@ -63,13 +63,8 @@ struct ContentSearch : Window
             I::InputText("##Dummy", (char*)"", 1);
         Controls::AsyncProgressBar(Async);
         I::SameLine(FLT_MIN, I::GetStyle().WindowPadding.x + I::GetStyle().FramePadding.x);
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Header", 3, ImGuiTableFlags_NoSavedSettings, { -I::GetStyle().FramePadding.x, 0 }))
+        if (scoped::TableDockLeftRight("Header", { -I::GetStyle().FramePadding.x, 0 }))
         {
-            I::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed);
-            I::TableSetupColumn("Padding", ImGuiTableColumnFlags_WidthStretch);
-            I::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
-
             I::TableNextColumn();
             I::AlignTextToFramePadding();
             I::Text(std::format("<c=#8>Content that contains </c>{}<c=#8> fields with value: </c>{}", Symbol->Name, Value).c_str());

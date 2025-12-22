@@ -177,18 +177,19 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
 
     void Draw() override
     {
-        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
-            UpdateSearch();
-        I::SameLine();
-        if (Controls::SearchFilterRange(FilterID, FilterRange))
-            UpdateSearch();
-
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Filter", 2, ImGuiTableFlags_NoSavedSettings))
+        if (scoped::TableDockRight("Search"))
         {
-            I::TableSetupColumn("Type");
-            I::TableSetupColumn("Locate", ImGuiTableColumnFlags_WidthFixed);
+            I::TableNextColumn();
+            if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
+                UpdateSearch();
 
+            I::TableNextColumn();
+            if (Controls::SearchFilterRange(FilterID, FilterRange))
+                UpdateSearch();
+        }
+
+        if (scoped::TableDockRight("Filter"))
+        {
             I::TableNextColumn();
             I::SetNextItemWidth(-FLT_MIN);
             std::vector<std::optional<User::ArchiveIndex::Type>> values(1, std::nullopt);

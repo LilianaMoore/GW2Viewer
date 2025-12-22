@@ -140,11 +140,16 @@ struct ConversationListViewer : ListViewer<ConversationListViewer, { ICON_FA_COM
 
     void Draw() override
     {
-        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
-            UpdateSearch();
-        I::SameLine();
-        if (Controls::SearchFilterRange(FilterID, FilterRange))
-            UpdateSearch();
+        if (scoped::TableDockRight("Search"))
+        {
+            I::TableNextColumn();
+            if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
+                UpdateSearch();
+
+            I::TableNextColumn();
+            if (Controls::SearchFilterRange(FilterID, FilterRange))
+                UpdateSearch();
+        }
 
         if (scoped::TableList("Table", 5))
         {

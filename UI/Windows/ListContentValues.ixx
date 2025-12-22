@@ -88,13 +88,8 @@ struct ListContentValues : Window
     std::string Title() override { return "List Content Values"; }
     void Draw() override
     {
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Header", 3, ImGuiTableFlags_NoSavedSettings, { -FLT_MIN, 0 }))
+        if (scoped::TableDockLeftRight("Header"))
         {
-            I::TableSetupColumn("Left", ImGuiTableColumnFlags_WidthFixed);
-            I::TableSetupColumn("Padding", ImGuiTableColumnFlags_WidthStretch);
-            I::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
-
             I::TableNextColumn();
             if (I::Button(ICON_FA_ARROWS_ROTATE " Refresh"))
                 Refresh();

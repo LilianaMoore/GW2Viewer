@@ -298,12 +298,8 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
     {
         ProcessContext context { *this };
 
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Search", 2, ImGuiTableFlags_NoSavedSettings))
+        if (scoped::TableDockRight("Search"))
         {
-            I::TableSetupColumn("Search");
-            I::TableSetupColumn("Settings", ImGuiTableColumnFlags_WidthFixed);
-
             I::TableNextColumn();
             I::SetNextItemWidth(-FLT_MIN);
             if (I::InputTextWithHint("##Search", ICON_FA_MAGNIFYING_GLASS " Search...", &FilterString))
@@ -359,12 +355,9 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
                 I::SetItemTooltip("Speculative, determined by DataID and GUID desynchronizing their ordering.\nReleases before 2015 don't follow this rule.\nOnly works when sorting by DataID.");
             }
         }
-        if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-        if (scoped::Table("Filter", 2, ImGuiTableFlags_NoSavedSettings))
-        {
-            I::TableSetupColumn("Type");
-            I::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
 
+        if (scoped::TableDockRight("Filter"))
+        {
             I::TableNextColumn();
             I::SetNextItemWidth(-FLT_MIN);
             std::vector<Data::Content::ContentTypeInfo const*> values(1, nullptr);

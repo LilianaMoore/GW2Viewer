@@ -173,11 +173,16 @@ struct EventListViewer : ListViewer<EventListViewer, { ICON_FA_SEAL " Events", "
 
     void Draw() override
     {
-        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
-            UpdateSearch();
-        I::SameLine();
-        if (Controls::SearchFilterRange(FilterID, FilterRange))
-            UpdateSearch();
+        if (scoped::TableDockRight("Search"))
+        {
+            I::TableNextColumn();
+            if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
+                UpdateSearch();
+
+            I::TableNextColumn();
+            if (Controls::SearchFilterRange(FilterID, FilterRange))
+                UpdateSearch();
+        }
 
         auto filter = [&, next = false](std::string_view text, bool& filter) mutable
         {

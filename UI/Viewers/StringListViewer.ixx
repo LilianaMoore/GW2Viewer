@@ -186,39 +186,44 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
 
     void Draw() override
     {
-        if (static bool focus = true; std::exchange(focus, false))
-            I::SetKeyboardFocusHere();
-        if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
-            UpdateSearch();
-        I::SameLine();
-        static bool trackClipboard = false;
-        static auto trackClipboardCooldown = Time::FrameStart;
-        static std::string previousClipboardContents;
-        if (I::CheckboxButton(ICON_FA_CLIPBOARD, trackClipboard, "Track Clipboard", I::GetFrameHeight()) && trackClipboard)
-            previousClipboardContents = I::GetClipboardText();
-        if (trackClipboard && Time::FrameStart >= trackClipboardCooldown)
+        if (scoped::TableDockRight("Search"))
         {
-            trackClipboardCooldown = Time::FrameStart + 100ms;
-            if (auto clipboard = I::GetClipboardText(); clipboard && previousClipboardContents != clipboard)
-            {
-                FilterString = previousClipboardContents = clipboard;
+            I::TableNextColumn();
+            if (static bool focus = true; std::exchange(focus, false))
+                I::SetKeyboardFocusHere();
+            if (Controls::SearchInput(FilterString, FilteredList, Lock, &AsyncFilter))
                 UpdateSearch();
+
+            I::TableNextColumn();
+            static bool trackClipboard = false;
+            static auto trackClipboardCooldown = Time::FrameStart;
+            static std::string previousClipboardContents;
+            if (I::CheckboxButton(ICON_FA_CLIPBOARD, trackClipboard, "Track Clipboard", I::GetFrameHeight()) && trackClipboard)
+                previousClipboardContents = I::GetClipboardText();
+            if (trackClipboard && Time::FrameStart >= trackClipboardCooldown)
+            {
+                trackClipboardCooldown = Time::FrameStart + 100ms;
+                if (auto clipboard = I::GetClipboardText(); clipboard && previousClipboardContents != clipboard)
+                {
+                    FilterString = previousClipboardContents = clipboard;
+                    UpdateSearch();
+                }
             }
+            I::SameLine(0, 0);
+            static bool copySingleResult = false;
+            std::string singleResult;
+            if (std::shared_lock __(Lock); FilteredList.size() == 1)
+                if (auto [string, status] = G::Game.Text.Get(FilteredList.front()); string)
+                    singleResult = Utils::Encoding::ToUTF8(*string);
+            static std::string previousSingleResult;
+            if (I::CheckboxButton(ICON_FA_COPY, copySingleResult, "Auto Copy Single Result", I::GetFrameHeight()) && copySingleResult && !singleResult.empty())
+                previousSingleResult = singleResult;
+            if (copySingleResult && !singleResult.empty() && previousSingleResult != singleResult)
+                I::SetClipboardText((previousClipboardContents = previousSingleResult = singleResult).c_str());
+            I::SameLine();
+            if (Controls::SearchFilterRange(FilterID, FilterRange))
+                UpdateSearch();
         }
-        I::SameLine(0, 0);
-        static bool copySingleResult = false;
-        std::string singleResult;
-        if (std::shared_lock __(Lock); FilteredList.size() == 1)
-            if (auto [string, status] = G::Game.Text.Get(FilteredList.front()); string)
-                singleResult = Utils::Encoding::ToUTF8(*string);
-        static std::string previousSingleResult;
-        if (I::CheckboxButton(ICON_FA_COPY, copySingleResult, "Auto Copy Single Result", I::GetFrameHeight()) && copySingleResult && !singleResult.empty())
-            previousSingleResult = singleResult;
-        if (copySingleResult && !singleResult.empty() && previousSingleResult != singleResult)
-            I::SetClipboardText((previousClipboardContents = previousSingleResult = singleResult).c_str());
-        I::SameLine();
-        if (Controls::SearchFilterRange(FilterID, FilterRange))
-            UpdateSearch();
 
         auto filter = [&, next = false](std::string_view text, bool& filter) mutable
         {

@@ -136,12 +136,8 @@ struct ContentExport : Window
         }
         else if (Path)
         {
-            if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2()))
-            if (scoped::Table("##Table", 2, ImGuiTableFlags_NoSavedSettings, { -FLT_MIN, 0 }))
+            if (scoped::TableDockRight("##Table"))
             {
-                I::TableSetupColumn("Center");
-                I::TableSetupColumn("Right", ImGuiTableColumnFlags_WidthFixed);
-
                 I::TableNextColumn();
                 I::SetNextItemWidth(-I::GetStyle().ItemSpacing.x);
                 I::InputTextReadOnly("##Path", Utils::Encoding::ToUTF8(absolute(*Path).wstring()), ImGuiInputTextFlags_ElideLeft);
