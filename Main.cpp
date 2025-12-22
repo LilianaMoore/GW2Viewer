@@ -6,7 +6,13 @@
 //#define DIRECTINPUT_VERSION 0x0800
 //#include <dinput.h>
 #include <tchar.h>
+#include <atomic>
+#include <csignal>
+#include <exception>
+#include <format>
+#include <stacktrace>
 
+import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Game;
 import GW2Viewer.System.Graphics;
 import GW2Viewer.UI.Manager;
@@ -164,6 +170,45 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
     G::Config.Load();
     G::UI.Load();
+
+    if (!IsDebuggerPresent())
+    {
+        static auto crashHandler = []
+        {
+            if (static std::atomic_flag crashed { }; !crashed.test_and_set())
+            {
+                try { G::Config.Save(true); }
+                catch (...) { }
+
+                try { std::ofstream(std::format("crash-{:%F_%H-%M-%S}.log", Time::Now())) << std::stacktrace::current(); }
+                catch (...) { }
+
+                MessageBox(nullptr, L"GW2Viewer has crashed. Config and stacktrace were saved.", L"GW2Viewer", MB_OK | MB_ICONERROR);
+            }
+        };
+        SetUnhandledExceptionFilter([](_EXCEPTION_POINTERS* pExceptionInfo) -> long __stdcall
+        {
+            crashHandler();
+            return EXCEPTION_CONTINUE_SEARCH;
+        });
+        std::set_terminate([]
+        {
+            crashHandler();
+            std::set_terminate(nullptr);
+            std::terminate();
+        });
+        auto signalHandler = [](int signal)
+        {
+            crashHandler();
+            std::signal(signal, SIG_DFL);
+            raise(signal);
+        };
+        std::signal(SIGABRT, signalHandler);
+        std::signal(SIGFPE, signalHandler);
+        std::signal(SIGILL, signalHandler);
+        std::signal(SIGSEGV, signalHandler);
+        std::signal(SIGTERM, signalHandler);
+    }
 
     // Main loop
     MSG msg;

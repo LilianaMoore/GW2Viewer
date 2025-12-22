@@ -20,11 +20,14 @@ bool Config::Load()
     });
     return true;
 }
-bool Config::Save()
+bool Config::Save(bool crash)
 {
     std::erase_if(ContentNamespaceNames, [](auto const& pair) { return pair.second.empty(); });
     std::erase_if(ContentObjectNames, [](auto const& pair) { return pair.second.empty(); });
-    std::ofstream file(configPath);
+    auto savePath = configPath;
+    if (crash)
+        savePath.replace_filename(std::format(L"{}-crash-{:%F_%H-%M-%S}{}", savePath.stem().wstring(), Time::Now(), savePath.extension().wstring()));
+    std::ofstream file(savePath);
     if (!file.is_open())
     {
         G::Notifications.AddCloseable({
