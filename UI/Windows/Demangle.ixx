@@ -10,8 +10,10 @@ import GW2Viewer.UI.Windows.Window;
 import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
+import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.Visitor;
 import std;
+import <boost/algorithm/string.hpp>;
 import <experimental/generator>;
 #include "Macros.h"
 
@@ -32,6 +34,7 @@ struct Demangle : Window
     std::deque<Data::Content::ContentNamespace const*> BruteforceRecursiveQueue;
     std::unordered_set<Data::Content::ContentNamespace const*> BruteforceRecursiveProcessed;
     Data::Content::ContentNamespace const* BruteforceRecursiveSkipTo = nullptr;
+    bool BruteforceDictionaryTryNamespaceNames = false;
 
     std::mutex UILock;
     std::wstring BruteforceUIPrefix;
@@ -109,6 +112,8 @@ struct Demangle : Window
             //dictionary.reserve(std::ranges::count(G::Config.BruteforceDictionary, L'\n') + 1);
             for (auto const& word : G::Config.BruteforceDictionary | std::views::split(L'\n'))
                 uniqueDictionary.emplace(std::from_range, word);
+            if (BruteforceDictionaryTryNamespaceNames)
+                uniqueDictionary.insert_range(G::Config.ContentNamespaceNames | std::views::values);
             uniqueDictionary.erase(L"");
 
             std::vector dictionary { std::from_range, uniqueDictionary };
@@ -296,10 +301,63 @@ struct Demangle : Window
             }
             if (scoped::TabItem("Bruteforce", nullptr, !BruteforceUIPrefix.empty() ? ImGuiTabItemFlags_SetSelected : 0))
             {
-                static std::string dictionary = Utils::Encoding::ToUTF8(G::Config.BruteforceDictionary);
-                I::SetNextItemWidth(-FLT_MIN);
-                if (I::InputTextMultiline("##Dictionary", &dictionary, { -FLT_MIN, 100 }))
-                    G::Config.BruteforceDictionary = Utils::Encoding::FromUTF8(dictionary);
+                static std::string dictionary;
+                static std::wstring cachedDictionary;
+                static std::set<std::wstring> uniqueDictionary;
+                static auto updateDictionary = [](std::wstring_view words)
+                {
+                    G::Config.BruteforceDictionary = cachedDictionary = words;
+                    dictionary = Utils::Encoding::ToUTF8(words);
+
+                    uniqueDictionary.clear();
+                    for (auto const& word : G::Config.BruteforceDictionary | std::views::split(L'\n'))
+                        uniqueDictionary.emplace(std::from_range, word);
+                    uniqueDictionary.erase(L"");
+                };
+                if (G::Config.BruteforceDictionary != cachedDictionary)
+                    updateDictionary(G::Config.BruteforceDictionary);
+
+                if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2()))
+                if (scoped::TableDockRight("##DictionaryTable"))
+                {
+                    I::TableNextColumn();
+                    I::SetNextItemWidth(-FLT_MIN);
+                    if (I::InputTextMultiline("##Dictionary", &dictionary, { -FLT_MIN, 100 }))
+                        updateDictionary(Utils::Encoding::FromUTF8(dictionary));
+
+                    I::TableNextColumn();
+                    I::AlignTextToFramePadding();
+                    I::TextUnformatted("Dictionary:");
+
+                    I::Text("<c=#8>Total Words: </c>%zu", std::ranges::count(G::Config.BruteforceDictionary, L'\n') + 1);
+                    I::Text("<c=#8>Unique Words: </c>%zu", uniqueDictionary.size());
+
+                    I::Separator();
+
+                    if (I::Button("Deduplicate"))
+                    {
+                        std::vector<std::wstring> deduplicated;
+                        deduplicated.reserve(uniqueDictionary.size());
+                        for (auto const& word : G::Config.BruteforceDictionary | std::views::split(L'\n'))
+                            if (std::wstring_view wordView { word }; !std::ranges::contains(deduplicated, wordView))
+                                deduplicated.emplace_back(wordView);
+
+                        updateDictionary(boost::algorithm::join(deduplicated, L"\n"));
+                    }
+                    I::SameLine();
+                    if (I::Button("Sort"))
+                    {
+                        std::vector<std::wstring> sorted;
+                        sorted.reserve(uniqueDictionary.size());
+                        for (auto const& word : G::Config.BruteforceDictionary | std::views::split(L'\n'))
+                            sorted.emplace_back(std::from_range, word);
+                        std::ranges::stable_sort(sorted, [](std::wstring const& a, std::wstring const& b) { return _wcsicmp(a.c_str(), b.c_str()) < 0; });
+
+                        updateDictionary(boost::algorithm::join(sorted, L"\n"));
+                    }
+                    I::Checkbox("Try Assigned Names", &BruteforceDictionaryTryNamespaceNames);
+                    I::SetItemTooltip("Add all already assigned namespace names to the bruteforce dictionary.\nBest used with word count of 1.");
+                }
 
                 static std::string prefix;
                 if (!BruteforceUIPrefix.empty())
