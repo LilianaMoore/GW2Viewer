@@ -467,4 +467,11 @@ void TypeInfo::Initialize(ContentTypeInfo const& typeInfo)
     }
 }
 
+TypeInfo::Enum const* TypeInfo::FindEnum(std::string_view enumType)
+{
+    if (auto const itr = G::Config.SharedEnums.find(enumType); itr != G::Config.SharedEnums.end())
+        return &itr->second;
+    return nullptr;
+}
+
 }

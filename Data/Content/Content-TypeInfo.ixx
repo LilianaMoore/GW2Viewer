@@ -82,6 +82,18 @@ struct TypeInfo
         bool operator==(Enum const&) const = default;
 
         char const* GetFormat() const { return Flags ? FLAGS_FORMAT : FORMAT; }
+        std::optional<std::string_view> FindName(int64 value) const
+        {
+            if (auto const itr = Values.find(value); itr != Values.end())
+                return itr->second;
+            return { };
+        }
+        std::optional<int64> FindValue(std::string_view name) const
+        {
+            if (auto const itr = std::ranges::find(Values, name, &decltype(Values)::value_type::second); itr != Values.end())
+                return itr->first;
+            return { };
+        }
     };
     struct Context;
     struct Symbol;
@@ -247,6 +259,34 @@ struct TypeInfo
     )
 
     void Initialize(ContentTypeInfo const& typeInfo);
+
+    static Enum const* FindEnum(std::string_view enumType);
+    static std::optional<int64> FindEnumValue(std::string_view enumType, std::string_view name)
+    {
+        if (auto const e = FindEnum(enumType))
+            return e->FindValue(name);
+        return { };
+    }
+    static std::optional<std::string_view> FindEnumName(std::string_view enumType, int64 value)
+    {
+        if (auto const e = FindEnum(enumType))
+            return e->FindName(value);
+        return { };
+    }
+    template<typename... EnumName>
+    static auto FindEnumValues(std::string_view enumType, EnumName... names)
+    {
+        if (auto const e = FindEnum(enumType))
+            return std::make_tuple(e->FindValue(names)...);
+        return decltype(std::make_tuple(Enum { }.FindValue(names)...)){ };
+    }
+    template<typename... EnumValue>
+    static auto FindEnumNames(std::string_view enumType, EnumValue... values)
+    {
+        if (auto const e = FindEnum(enumType))
+            return std::make_tuple(e->FindName(values)...);
+        return decltype(std::make_tuple(Enum { }.FindName(values)...)){ };
+    }
 };
 
 }

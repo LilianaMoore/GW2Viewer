@@ -89,7 +89,7 @@ struct Config
 
     std::map<uint32, Data::Content::TypeInfo> TypeInfo;
     std::map<std::string, Data::Content::TypeInfo::StructLayout> SharedTypes;
-    std::map<std::string, Data::Content::TypeInfo::Enum> SharedEnums;
+    std::map<std::string, Data::Content::TypeInfo::Enum, std::less<>> SharedEnums;
     std::map<std::wstring, std::wstring> ContentNamespaceNames;
     std::map<GUID, std::wstring> ContentObjectNames;
     uint32 LastNumContentTypes = 0;
