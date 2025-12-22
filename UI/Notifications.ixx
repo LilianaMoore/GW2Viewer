@@ -31,6 +31,15 @@ struct Notification
         bool HasClosed() const;
     };
 
+    enum class Types
+    {
+        Info,
+        Success,
+        Warning,
+        Error,
+    };
+
+    Types Type = Types::Info;
     std::string Text;
     float WidthMin = 0;
     float WidthMax = FLT_MAX;
@@ -73,6 +82,29 @@ struct NotificationManager
                 continue;
 
             auto const& notification = active.Notification;
+
+            uint32 changedColors = 0;
+            std::optional<ImVec4> colorMultiplier;
+            switch (notification.Type)
+            {
+                case Notification::Types::Info:
+                    break;
+                case Notification::Types::Success:
+                    colorMultiplier.emplace(0, 2, 0, 1);
+                    break;
+                case Notification::Types::Warning:
+                    colorMultiplier.emplace(2, 2, 0, 1);
+                    break;
+                case Notification::Types::Error:
+                    colorMultiplier.emplace(2, 0, 0, 1);
+                    break;
+            }
+            if (colorMultiplier)
+            {
+                for (auto const color : { ImGuiCol_WindowBg, ImGuiCol_FrameBg, ImGuiCol_FrameBgHovered, ImGuiCol_FrameBgActive, ImGuiCol_Button, ImGuiCol_ButtonHovered, ImGuiCol_ButtonActive })
+                    I::PushStyleColor(color, I::GetStyleColorVec4(color) * *colorMultiplier);
+                changedColors += 7;
+            }
 
             if (active.OffsetY == FLT_MAX)
                 active.OffsetY = rawPosition.y - positionStart.y;
@@ -135,6 +167,9 @@ struct NotificationManager
                     rawPosition.y += offset;
                 }
             }
+
+            if (changedColors)
+                I::PopStyleColor(changedColors);
 
             if (active.HasClosed())
                 --active.RefCounter;
