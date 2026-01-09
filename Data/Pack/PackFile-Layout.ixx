@@ -87,9 +87,9 @@ struct Field
 {
     std::string Name;
     UnderlyingTypes UnderlyingType;
-    RealTypes RealType;
-    uint32 ArraySize;
-    Type const* ElementType;
+    RealTypes RealType = RealTypes::Underlying;
+    uint32 ArraySize = 0;
+    Type const* ElementType = nullptr;
     std::vector<Type const*> VariantElementTypes;
 
     [[nodiscard]] uint32 Size(bool x64) const

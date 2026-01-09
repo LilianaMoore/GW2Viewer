@@ -98,6 +98,44 @@ void Manager::Load(std::filesystem::path const& path, Utils::Async::ProgressBarC
             progress = offset;
     }
 
+    if (m_chunks["AFNT"].empty())
+    {
+        auto const filename = m_types.try_emplace(new byte(), Type
+        {
+            .Name = "<Font File>",
+            .DeclaredSize = 6,
+            .Fields =
+            {
+                { .Name = "File", .UnderlyingType = UnderlyingTypes::FileName },
+            },
+        }).first;
+        auto const font = m_types.try_emplace(new byte(), Type
+        {
+            .Name = "<Font>",
+            .DeclaredSize = 68,
+            .Fields =
+            {
+                { .Name = "Language", .UnderlyingType = UnderlyingTypes::Byte },
+                { .Name = "Scale", .UnderlyingType = UnderlyingTypes::Byte },
+                { .Name = "Token", .UnderlyingType = UnderlyingTypes::Qword, .RealType = RealTypes::Token },
+                { .Name = "Flags", .UnderlyingType = UnderlyingTypes::Dword },
+                { .Name = "ExtentX", .UnderlyingType = UnderlyingTypes::Byte },
+                { .Name = "ExtentY", .UnderlyingType = UnderlyingTypes::Byte },
+                { .Name = "Files", .UnderlyingType = UnderlyingTypes::InlineArray, .ArraySize = 13, .ElementType = &filename->second },
+            },
+        }).first;
+        auto const fonts = m_types.try_emplace(new byte(), Type
+        {
+            .Name = "<Fonts>",
+            .DeclaredSize = 8,
+            .Fields =
+            {
+                { .Name = "Fonts", .UnderlyingType = UnderlyingTypes::DwordArray, .ElementType = &font->second },
+            },
+        }).first;
+        m_chunks["AFNT"].try_emplace(0, &fonts->second);
+    }
+
     m_loaded = true;
 }
 
