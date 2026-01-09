@@ -180,6 +180,11 @@ void Manager::UploadToGPU()
     if (!G::GraphicsDevice)
         return;
 
+    {
+        std::scoped_lock _(m_mutex);
+        std::erase_if(m_textures, [threshold = Time::FrameStart - 5s](auto const& pair) { return pair.second->UnloadTime < threshold; });
+    }
+
     std::pair<std::weak_ptr<TextureEntry>, std::unique_ptr<BoxedImage>> item;
     while (m_uploadQueue.try_dequeue(item))
     {
@@ -191,6 +196,7 @@ void Manager::UploadToGPU()
                 auto& image = *(DirectX::ScratchImage*)boxedImage->ScratchImage;
                 texture->Texture = Create(image.GetMetadata().width, image.GetMetadata().height, image.GetPixels());
                 texture->TextureLoadingState = texture->Texture ? TextureEntry::TextureLoadingStates::Loaded : TextureEntry::TextureLoadingStates::Error;
+                texture->UpdateUnloadTime();
             }();
         }
     }

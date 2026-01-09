@@ -15,7 +15,11 @@ public:
     {
         std::scoped_lock _(m_mutex);
         if (auto const itr = m_textures.find(fileID); itr != m_textures.end())
-            return itr->second.get();
+        {
+            auto texture = itr->second.get();
+            texture->UpdateUnloadTime();
+            return texture;
+        }
 
         return nullptr;
     }

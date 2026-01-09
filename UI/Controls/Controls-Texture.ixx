@@ -24,6 +24,9 @@ struct TextureOptions
 };
 bool Texture(uint32 textureFileID, TextureOptions const& options = { })
 {
+    if (!textureFileID || I::IsClippedEx({ I::GetCursorScreenPos(), I::GetCursorScreenPos() + options.Size }, 0))
+        goto skip;
+
     if (options.BestVersion)
         if (auto const file = G::Game.Archive.GetFileEntry(textureFileID))
             textureFileID = file->GetBestVersion().ID;
@@ -71,6 +74,8 @@ bool Texture(uint32 textureFileID, TextureOptions const& options = { })
                 I::Image(texture->Texture->Handle, fullSize);
         return true;
     }
+
+    skip:
     if (options.ReserveSpace && (options.Size.x || options.Size.y))
     {
         auto const pos = I::GetCursorScreenPos();

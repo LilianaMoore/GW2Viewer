@@ -1,5 +1,6 @@
 export module GW2Viewer.Data.Texture;
 import GW2Viewer.Common;
+import GW2Viewer.Common.Time;
 import GW2Viewer.UI.ImGui;
 import std;
 
@@ -44,6 +45,10 @@ struct TextureEntry : std::enable_shared_from_this<TextureEntry>
     };
     std::unique_ptr<Texture> Texture;
     TextureLoadingStates TextureLoadingState = TextureLoadingStates::NotLoaded;
+    Time::PreciseDuration UnloadTimeout;
+    Time::PrecisePoint UnloadTime = Time::FrameStart + 1h;
+
+    void UpdateUnloadTime();
 };
 
 }
