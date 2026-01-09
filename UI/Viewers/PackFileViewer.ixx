@@ -248,11 +248,13 @@ void DrawPackFileFieldValue(byte const*& p, bool x64, Data::Pack::Layout::Field 
             else
             {
                 I::Text("<c=#4>dword</c> %d", *(int32 const*)p);
-                I::SameLine(0, 0);
-                auto token = ((Token32 const*)p)->GetString();
-                I::Text("<c=#4> or token32</c> %s", token.data());
-                if (g_writeTokensTargets && *token.data())
-                    *g_writeTokensTargets += std::format("{}\n", token.data());
+                if (auto token = ((Token32 const*)p)->GetString(); token[0])
+                {
+                    I::SameLine(0, 0);
+                    I::Text("<c=#4> or token32</c> %s", token.data());
+                    if (g_writeTokensTargets && *token.data())
+                        *g_writeTokensTargets += std::format("{}\n", token.data());
+                }
             }
             ++(int32 const*&)p;
             break;

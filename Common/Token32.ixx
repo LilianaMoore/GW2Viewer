@@ -20,8 +20,8 @@ public:
     [[nodiscard]] bool empty() const { return !m_data; }
     [[nodiscard]] auto GetString() const
     {
-        boost::container::small_vector<char, 16> decoded;
-        if (uint32 token = m_data)
+        boost::container::small_vector<char, 8> decoded;
+        if (uint32 token = m_data; token & 0x30000000)
         {
             if (token -= 0x30000000)
             {
