@@ -21,6 +21,7 @@ class ProgressBarContext
     std::future<void> m_task;
     std::optional<UI::Notification::Handle> m_notification;
     mutable std::recursive_mutex m_notificationMutex;
+    std::unique_ptr<ProgressBarContext> m_child;
 
 public:
     void Start(std::string_view description, size_t total = 0, size_t current = 0)
@@ -53,7 +54,12 @@ public:
         m_current = current;
         return *this;
     }
-    ProgressBarContext& operator+=(size_t increment) { return *this = m_current + increment; }
+    ProgressBarContext& operator+=(size_t increment)
+    {
+        std::scoped_lock _(m_mutex);
+        m_current += increment;
+        return *this;
+    }
     ProgressBarContext& operator++() { return *this += 1; }
 
     [[nodiscard]] auto Lock() const { return std::scoped_lock(m_mutex); }
@@ -75,6 +81,14 @@ public:
     {
         std::scoped_lock _(m_mutex);
         return { IsIndeterminate() ? 0.0f : (float)m_current / (float)m_total, m_current, m_total };
+    }
+
+    ProgressBarContext& GetChild()
+    {
+        std::scoped_lock _(m_mutex);
+        if (!m_child)
+            m_child = std::make_unique<ProgressBarContext>();
+        return *m_child;
     }
 
     ProgressBarContext& Run(std::function<void(ProgressBarContext&)>&& func)
@@ -113,26 +127,35 @@ public:
             m_notification.emplace(G::Notifications.AddPersistent({
                 .WidthMin = 300,
                 .WidthMax = 300,
-                .Draw = [this](UI::Notification::Handle const& notification)
-                {
-                    if (auto lock = Lock(); IsRunning())
-                    {
-                        I::TextWrapped("%s", GetDescription().c_str());
-                        if (IsIndeterminate())
-                        {
-                            I::ProgressBar(-I::GetTime(), { -FLT_MIN, 8 }, "");
-                        }
-                        else if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2()))
-                        {
-                            auto [p, current, total] = GetProgress();
-                            I::Text("<c=#8>%zu / %zu</c>", current, total);
-                            I::ProgressBar(p, { -FLT_MIN, 8 }, "");
-                        }
-                    }
-                }
+                .Draw = std::bind(&ProgressBarContext::Draw, this, std::placeholders::_1, false),
             }));
         }
         return *this;
+    }
+
+private:
+    void Draw(UI::Notification::Handle const& notification, bool child) const
+    {
+        if (auto lock = Lock(); child || IsRunning())
+        {
+            if (auto const description = GetDescription(); !description.empty())
+                I::TextWrapped("%s", description.c_str());
+
+            if (IsIndeterminate())
+            {
+                I::ProgressBar(-I::GetTime(), { -FLT_MIN, 8 }, "");
+            }
+            else
+            {
+                auto [p, current, total] = GetProgress();
+                if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2()))
+                    I::Text("<c=#8>%zu / %zu</c>", current, total);
+                I::ProgressBar(p, { -FLT_MIN, 8 }, "");
+            }
+
+            if (m_child)
+                m_child->Draw(notification, true);
+        }
     }
 };
 
