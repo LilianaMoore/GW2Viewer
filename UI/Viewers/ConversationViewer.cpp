@@ -392,7 +392,7 @@ void ConversationViewer::Draw()
     std::set<uint32> visitedStates;
     uint32 nextExpectedStateID = 0;
     if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, { I::GetStyle().FramePadding.x, 0 }))
-    if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, { I::GetStyle().ItemSpacing.x, 0 })) // TODO: Remove after table
+    if (scoped::WithStyleVarY(ImGuiStyleVar_ItemSpacing, 0)) // TODO: Remove after table
     if (scoped::WithStyleVar(ImGuiStyleVar_IndentSpacing, 16))
     for (auto const& state : conversation.States)
     {

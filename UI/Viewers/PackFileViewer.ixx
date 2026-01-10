@@ -586,7 +586,7 @@ struct PackFileViewer : FileViewer
                     {
                         try
                         {
-                            if (scoped::WithStyleVar(ImGuiStyleVar_CellPadding, ImVec2(I::GetStyle().CellPadding.x, 0)))
+                            if (scoped::WithStyleVarY(ImGuiStyleVar_CellPadding, 0))
                             if (scoped::Table("Results", 3))
                             {
                                 I::TableSetupColumn("Chunk", ImGuiTableColumnFlags_WidthFixed);

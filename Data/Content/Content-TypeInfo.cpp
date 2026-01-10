@@ -179,7 +179,7 @@ void TypeInfo::Symbol::DrawOptions(TypeInfo& typeInfo, LayoutStack const& layout
         {
             extraSettings.emplace_back(icon, name, [&]
             {
-                //if (scoped::WithStyleVar(ImGuiStyleVar_ButtonTextAlign, { 0, I::GetStyle().ButtonTextAlign.y }))
+                //if (scoped::WithStyleVarX(ImGuiStyleVar_ButtonTextAlign, 0))
                 for (auto const& [index, path] : pathList | std::views::enumerate)
                 {
                     //I::Button(std::format("<c=#{}>{}</c>", path == fullPath ? "F" : "8", path).c_str(), { -FLT_MIN, 0 });

@@ -77,6 +77,16 @@ struct WithCursorOffset : ScopeWrapper<WithCursorOffset>
     void dtor() noexcept { ImGui::SetCursorScreenPos(restore); ImGui::GetCurrentWindow()->DC.IsSetPos = false; }
     ImVec2 const restore = ImGui::GetCursorScreenPos();
 };
+struct WithStyleVarX : ScopeWrapper<WithStyleVarX>
+{
+    WithStyleVarX(ImGuiStyleVar idx, float val_x) noexcept : ScopeWrapper(true) { ImGui::PushStyleVarX(idx, val_x); }
+    static void dtor() noexcept { ImGui::PopStyleVar(); }
+};
+struct WithStyleVarY : ScopeWrapper<WithStyleVarY>
+{
+    WithStyleVarY(ImGuiStyleVar idx, float val_y) noexcept : ScopeWrapper(true) { ImGui::PushStyleVarY(idx, val_y); }
+    static void dtor() noexcept { ImGui::PopStyleVar(); }
+};
 struct WithColorVar : ScopeWrapper<WithColorVar>
 {
     WithColorVar(ImGuiCol idx, ImVec4 const& col) noexcept : ScopeWrapper(true) { ImGui::PushStyleColor(idx, col); }

@@ -616,7 +616,7 @@ void ContentViewer::Draw()
     };
 
     if (scoped::Child("Scroll", { }, ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
-    if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, { I::GetStyle().ItemSpacing.x, 0 }))
+    if (scoped::WithStyleVarY(ImGuiStyleVar_ItemSpacing, 0))
     {
         RenderContentEditorContext options
         {
@@ -646,7 +646,7 @@ void ContentViewer::Draw()
         I::GetWindowDrawList()->AddRectFilled(cellCursor + ImVec2(cellSize.x * symbol.Size(), 0), cellCursor + ImVec2(cellSize.x * symbol.AlignedSize(), cellSize.y), I::ColorConvertFloat4ToU32({ 1, 1, 1, 0.5f }));
 
         I::SetNextWindowPos(cellCursor + ImVec2(0, up ? 0 : cellSize.y), ImGuiCond_None, { 0, up ? 1.0f : 0.0f });
-        if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, { I::GetStyle().ItemSpacing.x, 0 }))
+        if (scoped::WithStyleVarY(ImGuiStyleVar_ItemSpacing, 0))
         if (scoped::Popup("DefineStructLayoutSymbol", ImGuiWindowFlags_NoDecoration))
         {
             auto& layout = layoutStack.top().Layout->Symbols;
@@ -732,7 +732,7 @@ void ContentViewer::Draw()
         auto& layout = layoutStack.top().Layout->Symbols;
         auto symbolItr = std::ranges::find_if(layout, [symbol](auto const& pair) { return &pair.second == symbol; });
         I::SetNextWindowPos(up ? cursorTL : cursorBL, ImGuiCond_None, { 0, up ? 1.0f : 0.0f });
-        if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, { I::GetStyle().ItemSpacing.x, 0 }))
+        if (scoped::WithStyleVarY(ImGuiStyleVar_ItemSpacing, 0))
         if (scoped::Popup("ChangeStructLayoutSymbol", ImGuiWindowFlags_NoDecoration))
         {
             I::Text("Editing symbol at offset 0x%X (%d)", symbolItr->first, symbolItr->first);
