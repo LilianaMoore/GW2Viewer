@@ -102,11 +102,10 @@ std::unique_ptr<FileViewer> Init(uint32 id, bool newTab, FileViewer::TargetType 
 {
     std::unique_ptr<FileViewer> result = nullptr;
     if (auto const data = file.GetData(); data.size() >= 4) // TODO: Refactor to avoid copying
-    {
-        auto&& registry = FileViewers::GetRegistry();
-        if (auto const itr = registry.find(*(fcc const*)data.data()); itr != registry.end())
-            result = std::unique_ptr<FileViewer>(itr->second(id, newTab, file));
-    }
+        for (auto const& viewer : FileViewers::GetRegistry())
+            if (((uint32)viewer.FourCC & viewer.FourCCMask) == (*(uint32 const*)data.data() & viewer.FourCCMask))
+                result = viewer.Constructor(id, newTab, file);
+
     if (!result)
         result = std::make_unique<FileViewer>(id, newTab, file);
     result->Initialize();

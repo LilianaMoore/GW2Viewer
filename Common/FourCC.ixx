@@ -18,11 +18,7 @@ export enum class fcc : uint32
 {
     Empty = 0,
 
-    PF1 = 0x00014650,
-    PF2 = 0x00024650,
-    PF3 = 0x00034650,
-    PF4 = 0x00044650,
-    PF5 = 0x00054650,
+    PF = makefcc("PF  "),
 
     FourCC(ATEX),
     FourCC(ATTX),
