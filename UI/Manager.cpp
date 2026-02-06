@@ -160,7 +160,7 @@ void Manager::Load()
     style.TabRounding = 4;
     style.TabCloseButtonMinWidthUnselected = FLT_MAX;
 
-    for (auto const name : { "Files", "Strings", "Content", "Conversations", "Events", "Bookmarks" })
+    for (auto const name : { "Files", "Strings", "Content", "Conversations", "Events", "Vendors", "MapCinematics", "MysticForgeEntries", "Bookmarks" })
         m_listViewers.emplace_back(Viewers::ViewerRegistry::GetByName(name)->Constructor(m_nextViewerID++, false));
 
     for (auto const& viewer : m_listViewers)
