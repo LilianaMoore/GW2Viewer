@@ -5,6 +5,7 @@ import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Manager;
 import GW2Viewer.UI.Viewers.Viewer;
 import GW2Viewer.Utils.Encoding;
+import GW2Viewer.Utils.Format;
 import std;
 #include "Macros.h"
 
@@ -20,6 +21,9 @@ struct ContentButtonOptions
     std::string_view Icon = ICON_FA_ARROW_RIGHT;
     std::string_view MissingTypeName = "???";
     std::string_view MissingContentName;
+    bool HideContentIcon = false;
+    bool HideContentType = false;
+    bool HideContentName = false;
     struct CondenseContext
     {
         bool FullName = false;
@@ -38,13 +42,13 @@ void ContentButton(Data::Content::ContentObject const* content, void const* id, 
 
     std::string textPreIcon, textPostIcon;
     ImVec2 sizePreIcon, sizePostIcon, size;
-    auto const icon = content ? content->GetIcon() : 0;
+    auto const icon = !options.HideContentIcon && content ? content->GetIcon() : 0;
     auto const iconSize = icon ? ImVec2(I::GetFrameHeight(), I::GetFrameHeight()) : ImVec2();
     auto const padding = I::GetStyle().FramePadding;
     do
     {
-        textPreIcon = std::vformat(condense.TypeName ? "{} " : "{} <c=#4>{}</c> ", std::make_format_args(options.Icon, content ? Utils::Encoding::ToUTF8(content->Type->GetDisplayName()) : options.MissingTypeName));
-        textPostIcon = std::format("{}", content ? Utils::Encoding::ToUTF8(condense.FullName ? content->GetDisplayName() : content->GetFullDisplayName()) : options.MissingContentName);
+        textPreIcon = std::vformat(options.HideContentType || condense.TypeName ? "{0}{2}" : "{0} <c=#4>{1}</c>{2}", std::make_format_args(options.Icon, content ? Utils::Encoding::ToUTF8(content->Type->GetDisplayName()) : options.MissingTypeName, options.HideContentIcon && options.HideContentName ? "" : " "));
+        textPostIcon = options.HideContentName ? "" : content ? Utils::Encoding::ToUTF8(condense.FullName ? content->GetDisplayName() : content->GetFullDisplayName()) : options.MissingContentName;
         sizePreIcon = I::CalcTextSize(textPreIcon.c_str(), textPreIcon.c_str() + textPreIcon.size());
         sizePostIcon = I::CalcTextSize(textPostIcon.c_str(), textPostIcon.c_str() + textPostIcon.size());
         size = padding * 2;

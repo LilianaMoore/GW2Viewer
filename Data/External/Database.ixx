@@ -7,6 +7,7 @@ import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Content.Conversation;
 import GW2Viewer.Content.Event;
+import GW2Viewer.Content.Vendor;
 import GW2Viewer.Data.Encryption.Asset;
 import GW2Viewer.Data.Game;
 import GW2Viewer.UI.Manager;
@@ -14,6 +15,7 @@ import GW2Viewer.UI.Viewers.ConversationListViewer;
 import GW2Viewer.UI.Viewers.EventListViewer;
 import GW2Viewer.UI.Viewers.ListViewer;
 import GW2Viewer.UI.Viewers.StringListViewer;
+import GW2Viewer.UI.Viewers.VendorListViewer;
 import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async.ProgressBarContext;
 import GW2Viewer.Utils.Enum;
@@ -118,6 +120,7 @@ public:
 
         auto updateConversationSearch = [] { G::Viewers::Notify(&UI::Viewers::ConversationListViewer::UpdateSearch); };
         auto updateEventFilter = [] { G::Viewers::Notify(&UI::Viewers::EventListViewer::UpdateFilter); };
+        auto updateVendorSearch = [] { G::Viewers::Notify(&UI::Viewers::VendorListViewer::UpdateSearch); };
 
         using namespace sqlite;
         static database db(path.u16string(), { .flags = OpenFlags::READONLY });
@@ -225,6 +228,59 @@ public:
                     .PostHandler = updateConversationSearch,
                 }
             ),
+            LoadingOperation::Make("Vendors",
+                "Hash, NameTextID, IconFileID, Time",
+                [](uint64 Hash, uint32 NameTextID, uint32 IconFileID, uint64 Time)
+                {
+                    auto& vendor = Content::vendors[Hash];
+                    vendor.NameTextID = NameTextID;
+                    vendor.IconFileID = IconFileID;
+                    vendor.Encounter = Time;
+                },
+                {
+                    .SharedMutex = &Content::vendorsLock,
+                    .PostHandler = updateVendorSearch,
+                }),
+            LoadingOperation::Make("VendorServiceTabs",
+                "Hash, ServiceType, TabIndex, CurrencyType, CurrencyDefDataID, ItemDefDataID, CurrencyTypeSecondary, CurrencyDefSecondaryDataID, ItemDefSecondaryDataID, IconFileID, NameTextID, Type, Time",
+                [](uint64 Hash, uint32 ServiceType, uint32 TabIndex, uint32 CurrencyType, uint32 CurrencyDefDataID, uint32 ItemDefDataID, uint32 CurrencyTypeSecondary, uint32 CurrencyDefSecondaryDataID, uint32 ItemDefSecondaryDataID, uint32 IconFileID, uint32 NameTextID, uint32 Type, uint64 Time)
+                {
+                    Content::vendors[Hash].ServiceTabs.emplace(ServiceType, TabIndex, CurrencyType, CurrencyDefDataID, ItemDefDataID, CurrencyTypeSecondary, CurrencyDefSecondaryDataID, ItemDefSecondaryDataID, IconFileID, NameTextID, Type);
+                },
+                {
+                    .SharedMutex = &Content::vendorsLock,
+                    .PostHandler = updateVendorSearch,
+                }),
+            LoadingOperation::Make("VendorInventoryItems",
+                "Hash, ServiceType, TabIndex, Slot, ItemDefDataID, BuyQuantity, Flags, State, UnlockTextID, A, B, TabLimit, TabLimitScope, TabLimitLifetime, ProgressDefDataID, CostDetails, Time",
+                [](uint64 Hash, uint32 ServiceType, uint32 TabIndex, uint32 Slot, uint32 ItemDefDataID, uint32 BuyQuantity, uint32 Flags, uint32 State, uint32 UnlockTextID, uint32 A, uint32 B, int32 TabLimit, uint32 TabLimitScope, uint32 TabLimitLifetime, uint32 ProgressDefDataID, std::vector<byte> const& CostDetails, uint64 Time)
+                {
+                    for (auto& tab : Content::vendors[Hash].ServiceTabs | std::views::filter([ServiceType, TabIndex](auto const& tab) { return tab.ServiceType == ServiceType && tab.TabIndex == TabIndex; }))
+                    {
+                        using Currency = Content::Vendor::ServiceTab::InventoryItem::Currency;
+                        assert(!(CostDetails.size() % sizeof(Currency)));
+                        auto& item = *tab.InventoryItems.emplace(Slot, ItemDefDataID, BuyQuantity, Flags, State, UnlockTextID, A, B, TabLimit, TabLimitScope, TabLimitLifetime, ProgressDefDataID, std::vector((Currency const*)CostDetails.data(), (Currency const*)(CostDetails.data() + CostDetails.size()))).first;
+                        item.Encounter = Time;
+                    }
+                },
+                {
+                    .SharedMutex = &Content::vendorsLock,
+                    .PostHandler = updateVendorSearch,
+                }),
+            LoadingOperation::Make("AgentVendor",
+                "Time, MapSession, AgentID, AgentX, AgentY, AgentZ, AgentFacing, VendorHash, VendorServiceType, VendorTabIndex, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
+                [](uint64 Time, uint32 MapSession, std::optional<uint32> AgentID, std::optional<float> AgentX, std::optional<float> AgentY, std::optional<float> AgentZ, std::optional<float> AgentFacing, uint64 VendorHash, uint32 VendorServiceType, uint32 VendorTabIndex, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
+                {
+                    auto& vendor = Content::vendors[VendorHash];
+                    vendor.Encounter = { Time, { AgentX.value_or(ClientX), AgentY.value_or(ClientY), AgentZ.value_or(ClientZ), AgentFacing.value_or(ClientFacing) }, Map, MapSession, Session };
+
+                    for (auto& tab : vendor.ServiceTabs | std::views::filter([VendorHash, VendorServiceType, VendorTabIndex](auto const& tab) { return tab.ServiceType == VendorServiceType && tab.TabIndex == VendorTabIndex; }))
+                        tab.Encounter = vendor.Encounter;
+                },
+                {
+                    .SharedMutex = &Content::vendorsLock,
+                    .PostHandler = updateVendorSearch,
+                }),
             LoadingOperation::Make("Events",
                 "Map, UID, TitleTextID, TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time",
                 [](uint32 Map, uint32 UID, uint32 TitleTextID, uint32 TitleParameterTextID1, uint32 TitleParameterTextID2, uint32 TitleParameterTextID3, uint32 TitleParameterTextID4, uint32 TitleParameterTextID5, uint32 TitleParameterTextID6, uint32 DescriptionTextID, uint32 FileIconID, Content::Event::State::ClientFlags FlagsClient, Content::Event::State::ServerFlags FlagsServer, uint32 Level, uint32 MetaTextTextID, GUID const& AudioEffect, uint32 A, uint64 Time)

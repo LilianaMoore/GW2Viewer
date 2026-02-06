@@ -50,6 +50,7 @@ enum EContentTypes
     CounterTrigger,
     CraftingRecipeIngredient,
     CreatureGroupDef,
+    CurrencyDef,
     DungeonRewardItem,
     DeveloperDef,
     EffectDef,

@@ -173,17 +173,43 @@ void FormatTo(std::wstring& string, TEXTPARAM param, T&& value, Args&&... args)
 }
 
 template<typename... Args>
+std::wstring FormatString(std::wstring_view format, Args&&... args)
+{
+    std::wstring result { format };
+    FormatTo(result, std::forward<Args>(args)...);
+    Utils::String::ReplaceAll(result, L"%%", L"%");
+    FixupString(result);
+    return result;
+}
+
+template<typename... Args>
 std::wstring FormatString(uint32 stringID, Args&&... args)
 {
     if (auto format = G::Game.Text.Get(stringID).first)
-    {
-        std::wstring result = *format;
-        FormatTo(result, std::forward<Args>(args)...);
-        Utils::String::ReplaceAll(result, L"%%", L"%");
-        FixupString(result);
-        return result;
-    }
+        return FormatString(*format, std::forward<Args>(args)...);
     return { };
+}
+
+std::wstring FormatStringEmpty(std::wstring_view format)
+{
+    return FormatString(format,
+        TEXTPARAM_STR1_LITERAL, L"",
+        TEXTPARAM_STR2_LITERAL, L"",
+        TEXTPARAM_STR3_LITERAL, L"",
+        TEXTPARAM_STR4_LITERAL, L"",
+        TEXTPARAM_STR5_LITERAL, L"",
+        TEXTPARAM_STR6_LITERAL, L"");
+}
+
+std::wstring FormatStringEmpty(uint32 stringID)
+{
+    return FormatString(stringID,
+        TEXTPARAM_STR1_LITERAL, L"",
+        TEXTPARAM_STR2_LITERAL, L"",
+        TEXTPARAM_STR3_LITERAL, L"",
+        TEXTPARAM_STR4_LITERAL, L"",
+        TEXTPARAM_STR5_LITERAL, L"",
+        TEXTPARAM_STR6_LITERAL, L"");
 }
 
 }

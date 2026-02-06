@@ -90,6 +90,7 @@
     <ClCompile Include="Content\Content.ixx" />
     <ClCompile Include="Content\Conversation.ixx" />
     <ClCompile Include="Content\Event.ixx" />
+    <ClCompile Include="Content\Vendor.ixx" />
     <ClCompile Include="Data\Archive\Archive.ixx" />
     <ClCompile Include="Data\Archive\Manager.cpp" />
     <ClCompile Include="Data\Archive\Manager.ixx" />
@@ -210,6 +211,9 @@
     <ClCompile Include="UI\Viewers\MapLayoutViewer.ixx" />
     <ClCompile Include="UI\Viewers\PackFileViewer.ixx" />
     <ClCompile Include="UI\Viewers\StringListViewer.ixx" />
+    <ClCompile Include="UI\Viewers\VendorListViewer.ixx" />
+    <ClCompile Include="UI\Viewers\VendorViewer.cpp" />
+    <ClCompile Include="UI\Viewers\VendorViewer.ixx" />
     <ClCompile Include="UI\Viewers\Viewer.ixx" />
     <ClCompile Include="UI\Viewers\ViewerRegistry.ixx" />
     <ClCompile Include="UI\Viewers\ViewerWithHistory.ixx" />
