@@ -73,7 +73,7 @@ void ContentViewer::Draw()
                 auto const start = I::GetCursorPosY();
                 if (scoped::Group())
                 {
-                    if (I::InputTextUTF8("Content Name", G::Config.ContentObjectNames, *Content.GetGUID(), Content.GetName() && Content.GetName()->Name && *Content.GetName()->Name ? *Content.GetName()->Name : Content.GetDisplayName()))
+                    if (I::InputTextUTF8("Content Name", G::Config.ContentObjectNames, *Content.GetGUID(), Content.GetName() && Content.GetName()->Name && Content.GetName()->Name->Pointer ? Content.GetName()->Name->Pointer : Content.GetDisplayName()))
                         G::Viewers::Notify(&ContentListViewer::ClearCache);
                     I::InputTextUTF8("Namespace Name", G::Config.ContentNamespaceNames, Content.Namespace->GetFullName(), Content.Namespace->Name);
                     I::InputTextWithHint("Type Name", Utils::Encoding::ToUTF8(Content.Type->GetDisplayName()).c_str(), &typeInfo.Name);

@@ -484,9 +484,9 @@ private:
                             ns->Entries.emplace_back(object);
                             m_unrootedObjects.emplace_back(object);
                         }
-                        if (auto const names = object->GetName(); names && names->FullName && *names->FullName && **names->FullName)
+                        if (auto const names = object->GetName(); names && names->FullName && names->FullName->Pointer && *names->FullName->Pointer)
                         {
-                            std::wstring_view name = *names->FullName;
+                            std::wstring_view name = names->FullName->Pointer;
                             if (auto const pos = name.find_last_of(L'.'); pos != std::wstring_view::npos)
                                 name.remove_prefix(pos + 1);
                             m_objectsByName[name].emplace_back(object);

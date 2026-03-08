@@ -924,7 +924,7 @@ private:
                 if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, I::GetStyle().FramePadding))
                 {
                     I::Text("Full Name: %s", Utils::Encoding::ToUTF8(entry.GetFullName()).c_str());
-                    if (I::InputTextUTF8("Name", G::Config.ContentObjectNames, *entry.GetGUID(), entry.GetName() && entry.GetName()->Name && *entry.GetName()->Name ? *entry.GetName()->Name : entry.GetDisplayName()))
+                    if (I::InputTextUTF8("Name", G::Config.ContentObjectNames, *entry.GetGUID(), entry.GetName() && entry.GetName()->Name && entry.GetName()->Name->Pointer ? entry.GetName()->Name->Pointer : entry.GetDisplayName()))
                         ClearCache();
 
                     Controls::CopyButton("GUID", entry.GetGUID() ? *entry.GetGUID() : GUID::Empty, entry.GetGUID());
@@ -943,7 +943,7 @@ private:
                         UpdateFilter();
                     }
 
-                    Controls::CopyButton("Mangled Name", entry.GetName() ? *entry.GetName()->Name : L"", entry.GetName());
+                    Controls::CopyButton("Mangled Name", entry.GetName() ? entry.GetName()->Name->Pointer : L"", entry.GetName());
                     I::SameLine();
                     Controls::CopyButton("Full Mangled Name", entry.GetFullName(), entry.GetName());
 

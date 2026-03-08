@@ -56,7 +56,7 @@ std::wstring* GetCustomName(ContentObject const& object)
 bool IsCustomNameCorrect(ContentObject const& object, std::wstring_view custom)
 {
     auto const name = object.GetName();
-    return name && name->Name && *name->Name && MangleFullName(custom) == wcsrchr(*name->Name, L'.') + 1;
+    return name && name->Name && name->Name->Pointer && MangleFullName(custom) == wcsrchr(name->Name->Pointer, L'.') + 1;
 }
 
 bool ContentObject::HasCustomName() const
@@ -119,8 +119,8 @@ std::wstring ContentObject::GetDisplayName(bool skipCustom, bool skipColor, bool
             }
         }
     }
-    if (auto* name = GetName(); name && name->Name && *name->Name)
-        return std::vformat(skipColor ? L"{}" : L"<c=#FFC>{}</c>", std::make_wformat_args(*name->Name));
+    if (auto* name = GetName(); name && name->Name && name->Name->Pointer)
+        return std::vformat(skipColor ? L"{}" : L"<c=#FFC>{}</c>", std::make_wformat_args(name->Name->Pointer));
     if (auto* id = GetDataID())
         return std::vformat(skipColor ? L"<ID: 0x{:08X}>" : L"<c=#AAA><ID: 0x{:08X}></c>", std::make_wformat_args(Type->Index << 22 | (*id & 0x3FFFFF)));
     if (auto* uid = GetUID(); uid && *uid)
@@ -132,8 +132,8 @@ std::wstring ContentObject::GetDisplayName(bool skipCustom, bool skipColor, bool
 
 std::wstring ContentObject::GetFullDisplayName(bool skipCustom, bool skipColor, bool skipFormat) const
 {
-    if (auto* name = GetName(); name && name->FullName && *name->FullName && (!name->Name || !*name->Name || std::wstring_view(*name->Name) != *name->FullName))
-        return *name->FullName;
+    if (auto* name = GetName(); name && name->FullName && name->FullName->Pointer && (!name->Name || !name->Name->Pointer || std::wstring_view(name->Name->Pointer) != name->FullName->Pointer))
+        return name->FullName->Pointer;
     return Namespace
         ? std::vformat(skipColor ? L"{}.{}" : L"<c=#8>{}.</c>{}", std::make_wformat_args(Namespace->GetFullDisplayName(skipCustom, skipColor), GetDisplayName(skipCustom, skipColor, skipFormat)))
         : GetDisplayName(skipCustom, skipColor, skipFormat);
@@ -143,13 +143,13 @@ std::wstring ContentObject::GetFullName() const
 {
     if (auto* name = GetName())
     {
-        if (name->FullName && *name->FullName)
-            return *name->FullName;
+        if (name->FullName && name->FullName->Pointer)
+            return name->FullName->Pointer;
 
-        if (name->Name && *name->Name)
+        if (name->Name && name->Name->Pointer)
             return Namespace
-                ? std::format(L"{}.{}", Namespace->Name, *name->Name)
-                : *name->Name;
+                ? std::format(L"{}.{}", Namespace->Name, name->Name->Pointer)
+                : name->Name->Pointer;
     }
     return { };
 }
@@ -219,7 +219,7 @@ bool ContentObject::MatchesFilter(ContentFilter& filter) const
             std::ranges::any_of(Entries, std::bind_back(&ContentObject::MatchesFilter, std::ref(filter))) ||
             (!filter.Type || Type == filter.Type) &&
             (filter.NameSearch.empty()
-                || (name = GetName(), name && name->Name && *name->Name && std::ranges::search(std::wstring_view(*name->Name), filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))
+                || (name = GetName(), name && name->Name && name->Name->Pointer && std::ranges::search(std::wstring_view(name->Name->Pointer), filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))
                 || (displayName = GetDisplayName(false, true), std::ranges::search(displayName, filter.NameSearch, std::ranges::equal_to(), std::towupper, std::towupper))) &&
             (!filter.GUIDSearch || (guid = GetGUID(), guid && *guid == *filter.GUIDSearch)) &&
             (!filter.UIDSearch || (id = GetUID(), id && *id >= filter.UIDSearch->first && *id <= filter.UIDSearch->second)) &&
