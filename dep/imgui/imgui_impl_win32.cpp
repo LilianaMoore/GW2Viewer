@@ -1142,6 +1142,11 @@ static void ImGui_ImplWin32_CreateWindow(ImGuiViewport* viewport)
     viewport->PlatformRequestResize = false;
     viewport->PlatformHandle = viewport->PlatformHandleRaw = vd->Hwnd;
 
+    auto const enabled = DWMNCRP_ENABLED;
+    DwmSetWindowAttribute(vd->Hwnd, DWMWA_NCRENDERING_POLICY, &enabled, sizeof(enabled));
+    MARGINS const margins { 0, 0, 1, 0 };
+    DwmExtendFrameIntoClientArea(vd->Hwnd, &margins);
+
     // Secondary viewports store their imgui context
     ::SetPropA(vd->Hwnd, "IMGUI_CONTEXT", ImGui::GetCurrentContext());
 }

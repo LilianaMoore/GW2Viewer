@@ -82,6 +82,7 @@ void Manager::Load()
     {
         return G::Game.Texture.Load(pathTextures / filename);
     };
+    Textures.WindowShadow = loadTexture("WindowShadow.png");
 
     ImVec4* colors = I::GetStyle().Colors;
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);

@@ -1,4 +1,5 @@
 ﻿module;
+#include "ImGuiExtensions.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <Windows.h>
@@ -9,11 +10,11 @@ module GW2Viewer.UI.ImGui;
 import GW2Viewer.Data.Game;
 import GW2Viewer.Data.Texture;
 import GW2Viewer.UI.Manager;
+import GW2Viewer.Utils.Math;
 import std;
 import <boost/container/small_vector.hpp>;
 
-using GW2Viewer::byte;
-using GW2Viewer::uint32;
+using namespace GW2Viewer;
 
 static constexpr auto cihash = [](std::string_view const& key)
 {
@@ -849,6 +850,47 @@ begin:
     for (auto const& image : images)
         if (image.Rect.Min.x < image.Rect.Max.x && image.Rect.Min.y < image.Rect.Max.y)
             draw_list->AddImage(image.TextureRef, image.Rect.Min, image.Rect.Max, image.UV.Min, image.UV.Max, image.Color);
+}
+
+void ImGui::DrawWindowShadow(char const* name, ImGuiWindowFlags flags)
+{
+    if (!(flags & ImGuiWindowFlags_ChildWindow) && !IsWindowDocked() && name != "##MainMenuBar"sv)
+    {
+        if (auto const texture = G::Game.Texture.Get(G::UI.Textures.WindowShadow); texture && texture->Texture && texture->Texture->Handle.GetTexID())
+        {
+            SetStateStorage(nullptr); // Workaround for ImGui not setting window->DC.StateStorage until later in the Begin function
+            auto& lerp = *GetStateStorage()->GetFloatRef(GetID("##WindowShadowLerp"), 0.0f);
+            if (IsWindowAppearing())
+                lerp = 0;
+            Utils::Math::ExpDecayChase(lerp, IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows | ImGuiFocusedFlags_DockHierarchy) ? 1.0f : 0.0f, 10, 0.0001f);
+
+            auto const tex_id = texture->Texture->Handle.GetTexID();
+            auto const size = std::lerp(16.0f, 32.0f, lerp);
+            auto const alpha = std::lerp(0.3f, 0.5f, lerp);
+
+            ImRect rect { GetWindowPos(), GetWindowPos() + GetWindowSize() };
+            rect.Expand(-size / 4);
+            rect.TranslateY(size / 8);
+            static constexpr float uv[] { 0.0f, 0.25f, 0.75f, 1.0f };
+            auto const col = GetColorU32(0xFFFFFFFF, alpha);
+            auto const draw_list = IsWindowDocked() ? GetWindowDockNode()->HostWindow->DrawList : GetWindowDrawList();
+            if (IsWindowDocked() || (flags & ImGuiWindowFlags_DockNodeHost))
+                draw_list->ChannelsSetCurrent(DOCKING_HOST_DRAW_CHANNEL_BG);
+            draw_list->PushClipRectFullScreen();
+            draw_list->AddImage(tex_id, { rect.Min.x - size, rect.Min.y - size }, { rect.Min.x,        rect.Min.y        }, { uv[0], uv[0] }, { uv[1], uv[1] }, col);
+            draw_list->AddImage(tex_id, { rect.Min.x,        rect.Min.y - size }, { rect.Max.x,        rect.Min.y        }, { uv[1], uv[0] }, { uv[2], uv[1] }, col);
+            draw_list->AddImage(tex_id, { rect.Max.x,        rect.Min.y - size }, { rect.Max.x + size, rect.Min.y        }, { uv[2], uv[0] }, { uv[3], uv[1] }, col);
+            draw_list->AddImage(tex_id, { rect.Min.x - size, rect.Min.y        }, { rect.Min.x,        rect.Max.y        }, { uv[0], uv[1] }, { uv[1], uv[2] }, col);
+            draw_list->AddImage(tex_id, { rect.Min.x,        rect.Min.y        }, { rect.Max.x,        rect.Max.y        }, { uv[1], uv[1] }, { uv[2], uv[2] }, col);
+            draw_list->AddImage(tex_id, { rect.Max.x,        rect.Min.y        }, { rect.Max.x + size, rect.Max.y        }, { uv[2], uv[1] }, { uv[3], uv[2] }, col);
+            draw_list->AddImage(tex_id, { rect.Min.x - size, rect.Max.y        }, { rect.Min.x,        rect.Max.y + size }, { uv[0], uv[2] }, { uv[1], uv[3] }, col);
+            draw_list->AddImage(tex_id, { rect.Min.x,        rect.Max.y        }, { rect.Max.x,        rect.Max.y + size }, { uv[1], uv[2] }, { uv[2], uv[3] }, col);
+            draw_list->AddImage(tex_id, { rect.Max.x,        rect.Max.y        }, { rect.Max.x + size, rect.Max.y + size }, { uv[2], uv[2] }, { uv[3], uv[3] }, col);
+            draw_list->PopClipRect();
+            if (IsWindowDocked() || (flags & ImGuiWindowFlags_DockNodeHost))
+                draw_list->ChannelsSetCurrent(DOCKING_HOST_DRAW_CHANNEL_FG);
+        }
+    }
 }
 
 bool ImGui::CloseButton(ImGuiID id, const ImVec2& pos)

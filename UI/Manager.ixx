@@ -22,6 +22,7 @@ public:
     } Fonts;
     struct
     {
+        uint32 WindowShadow { };
     } Textures;
 
     struct
