@@ -35,6 +35,10 @@ namespace GW2Viewer::UI
 
 void Manager::Load()
 {
+    std::filesystem::path const pathResources = "Resources";
+    auto const pathFonts = pathResources / "Fonts";
+    auto const pathTextures = pathResources / "Textures";
+
     ImGuiIO& io = I::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -44,26 +48,26 @@ void Manager::Load()
     io.ConfigDockingTransparentPayload = true;
 
     io.Fonts->AddFontDefault();
-    auto loadFont = [&](const char* filename, float size)
+    auto loadFont = [&](std::filesystem::path const& filename, float size)
     {
         static constexpr ImWchar faRanges[] { ICON_MIN_FA, ICON_MAX_FA, 0 };
         {
             ImFontConfig config;
             config.GlyphExcludeRanges = faRanges;
-            io.Fonts->AddFontFromFileTTF(std::format(R"(Resources\Fonts\{})", filename).c_str(), size, &config);
+            io.Fonts->AddFontFromFileTTF((pathFonts / filename).string().c_str(), size, &config);
         }
         {
             ImFontConfig config;
             config.MergeMode = true;
             config.GlyphExcludeRanges = faRanges;
-            io.Fonts->AddFontFromFileTTF(R"(Resources\Fonts\NotoSansSC-Regular.ttf)", size, &config); // Fallback for Simplified Chinese
+            io.Fonts->AddFontFromFileTTF((pathFonts / "NotoSansSC-Regular.ttf").string().c_str(), size, &config); // Fallback for Simplified Chinese
         }
         {
             ImFontConfig config;
             config.MergeMode = true;
             config.PixelSnapH = true;
             config.GlyphMinAdvanceX = 10.0f;
-            return io.Fonts->AddFontFromFileTTF(R"(Resources\Fonts\)" FONT_ICON_FILE_NAME_FAS, 10.0f, &config);
+            return io.Fonts->AddFontFromFileTTF((pathFonts / FONT_ICON_FILE_NAME_FAS).string().c_str(), 10.0f, &config);
         }
     };
     Fonts.Default = loadFont("Roboto-Regular.ttf", 15.0f);
@@ -73,6 +77,11 @@ void Manager::Load()
     Fonts.GameHeading = loadFont("menomonia.ttf", 18.0f);
     Fonts.GameHeadingItalic = loadFont("menomonia-italic.ttf", 18.0f);
     io.FontDefault = Fonts.Default;
+
+    auto loadTexture = [&](std::filesystem::path const& filename)
+    {
+        return G::Game.Texture.Load(pathTextures / filename);
+    };
 
     ImVec4* colors = I::GetStyle().Colors;
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);

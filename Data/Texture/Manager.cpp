@@ -174,6 +174,21 @@ void Manager::Load(uint32 fileID, LoadTextureOptions const& options)
     if (!m_loadingThread)
         m_loadingThread.emplace([this] { LoadingThread(); });
 }
+uint32 Manager::Load(std::filesystem::path const& localFilePath, LoadTextureOptions const& options)
+{
+    assert(options.ExportPath.empty());
+
+    std::ifstream file(localFilePath, std::ios::binary);
+    file.unsetf(std::ios::skipws);
+    std::vector<byte> data;
+    data.reserve(std::filesystem::file_size(localFilePath));
+    std::copy(std::istream_iterator<byte>(file), std::istream_iterator<byte>(), std::back_inserter(data));
+
+    std::scoped_lock _(m_mutex);
+    uint32 const fileID = m_nextLocalFileID--;
+    Load(fileID, { .DataSource = &data, .NoUnload = true });
+    return fileID;
+}
 
 void Manager::UploadToGPU()
 {
@@ -182,7 +197,7 @@ void Manager::UploadToGPU()
 
     {
         std::scoped_lock _(m_mutex);
-        std::erase_if(m_textures, [threshold = Time::FrameStart - 5s](auto const& pair) { return pair.second->UnloadTime < threshold; });
+        std::erase_if(m_textures, [threshold = Time::FrameStart](auto const& pair) { return !pair.second->Options.NoUnload && pair.second->UnloadTime < threshold; });
     }
 
     std::pair<std::weak_ptr<TextureEntry>, std::unique_ptr<BoxedImage>> item;

@@ -26,6 +26,7 @@ struct LoadTextureOptions
 {
     std::vector<byte> const* DataSource = nullptr;
     std::filesystem::path ExportPath;
+    bool NoUnload = false;
 };
 
 struct TextureEntry : std::enable_shared_from_this<TextureEntry>

@@ -25,6 +25,7 @@ public:
     }
     std::unique_ptr<Texture> Create(uint32 width, uint32 height, void const* data = nullptr);
     void Load(uint32 fileID, LoadTextureOptions const& options = { });
+    uint32 Load(std::filesystem::path const& localFilePath, LoadTextureOptions const& options = { });
     void UploadToGPU();
     void StopLoading()
     {
@@ -36,6 +37,7 @@ public:
 private:
     std::unordered_map<uint32, std::shared_ptr<TextureEntry>> m_textures;
     std::recursive_mutex m_mutex;
+    uint32 m_nextLocalFileID = -1;
 
     struct BoxedImage { void* ScratchImage; ~BoxedImage(); };
     std::unique_ptr<BoxedImage> GetTextureRGBAImage(TextureEntry& texture);

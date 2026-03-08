@@ -20,6 +20,9 @@ public:
         ImFont* GameHeading { };
         ImFont* GameHeadingItalic { };
     } Fonts;
+    struct
+    {
+    } Textures;
 
     struct
     {
