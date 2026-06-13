@@ -66,6 +66,7 @@ bool ArchiveIndex::UpdateCache(CacheFile& cache, uint32 fileID) const
             case fcc::ATEU:
             case fcc::ATET:
             case fcc::CTEX:
+            case fcc::CTEU:
             {
                 metadata.Type = Type::Texture;
 

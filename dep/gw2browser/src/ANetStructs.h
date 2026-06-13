@@ -63,6 +63,7 @@ namespace gw2b {
         FCC_OggS = 0x5367674f,
         FCC_ARAP = 0x50415241,  // relate to temp folder name of CoherentUI
         FCC_CTEX = 0x58455443,  // DXT5 compressed texture, custom format.
+		FCC_CTEU = 0x55455443,  // DXT5 compressed texture, custom format.
 
         // Texture codec
         FCC_DXT1 = 0x31545844,
@@ -133,6 +134,7 @@ namespace gw2b {
         ANFT_ATEU,                      /**< ATEU texture, used for UI. */
         ANFT_ATET,                      /**< ATET texture, unknown use. */
         ANFT_CTEX,                      /**< CTEX texture, unknown use. */
+        ANFT_CTEU,                      /**< CTEU texture, unknown use. */
         ANFT_DDS,                       /**< DDS texture, not an ANet specific format. */
         ANFT_JPEG,                      /**< JPEG Image, not an ANet specific format. */
         ANFT_WEBP,                      /**< WebP Image, not an ANet specific format. */

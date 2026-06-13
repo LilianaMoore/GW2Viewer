@@ -260,6 +260,7 @@ std::unique_ptr<Manager::BoxedImage> Manager::GetTextureRGBAImage(TextureEntry& 
         case 'ATEU':
         case 'ATET':
         case 'CTEX':
+        case 'CTEU':
         {
             struct HeaderATEX
             {

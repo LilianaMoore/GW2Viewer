@@ -498,7 +498,8 @@ namespace gw2b {
         }
 
         if ( ( fourcc == FCC_ATEX ) || ( fourcc == FCC_ATTX ) || ( fourcc == FCC_ATEP ) ||
-            ( fourcc == FCC_ATEU ) || ( fourcc == FCC_ATEC ) || ( fourcc == FCC_ATET ) || ( fourcc == FCC_CTEX ) ) {
+            ( fourcc == FCC_ATEU ) || ( fourcc == FCC_ATEC ) || ( fourcc == FCC_ATET ) || 
+            ( fourcc == FCC_CTEX ) || ( fourcc == FCC_CTEU ) ) {
             auto compression = *reinterpret_cast<const uint32*>( p_data + 4 );
             return ( compression == FCC_DXT1 ) ||
                 ( compression == FCC_DXT2 ) ||

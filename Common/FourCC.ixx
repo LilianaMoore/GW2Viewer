@@ -37,6 +37,7 @@ export enum class fcc : uint32
     FourCC(OggS),
     FourCC(ARAP),
     FourCC(CTEX),
+    FourCC(CTEU),
 
     // Texture codec
     FourCC(DXT1),
