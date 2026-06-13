@@ -735,7 +735,8 @@ struct PackFileViewer : FileViewer
         auto const start = Time::Now();
         for (auto const& chunk : *PackFile)
         {
-            std::string const fcc { (char const*)&chunk.Header.Magic, 4 };
+            auto const* fccP = reinterpret_cast<char const*>(&chunk.Header.Magic);
+            std::string const fcc{ fccP, strnlen(fccP, 4) };
             auto const* p = chunk.Data;
             I::TextUnformatted(std::format("Chunk <{}>", fcc.c_str()).c_str());
             I::Dummy({ 25, 0 });
