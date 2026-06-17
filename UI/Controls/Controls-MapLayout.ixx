@@ -107,25 +107,55 @@ struct MapLayout
         }
     };
 
-    void Reset()
+    template<typename T>
+    struct Locked
     {
-        *this = { };
-    }
+        T& Object;
+        std::unique_lock<std::mutex> Lock;
+    };
     void AdoptContinent(ContentObject const& object);
     void AddBackdrop(float scale, uint32 unexploredFileID, uint32 exploredFileID, bool water = false, bool interior = false);
-    Icon& AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, float size) { return AddIcon(textureFileID, mapDef, mapPosition, { size, size }); }
-    Icon& AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size);
-    Icon& AddIcon(uint32 textureFileID, ImVec2 position, float size) { return AddIcon(textureFileID, position, { size, size }); }
-    Icon& AddIcon(uint32 textureFileID, ImVec2 position, ImVec2 size) { return Icons.emplace_back(textureFileID, position, size); }
-    Sector& AddSector(std::vector<ImVec2>&& points) { return Sectors.emplace_back(std::move(points)); }
+    Locked<Icon> AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, float size) { return AddIcon(textureFileID, mapDef, mapPosition, { size, size }); }
+    Locked<Icon> AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size);
+    Locked<Icon> AddIcon(uint32 textureFileID, ImVec2 position, float size) { return AddIcon(textureFileID, position, { size, size }); }
+    Locked<Icon> AddIcon(uint32 textureFileID, ImVec2 position, ImVec2 size) { std::unique_lock lock(Icons.TailMutex); return { Icons.Tail.emplace_back(textureFileID, position, size), std::move(lock) }; }
+    Locked<Sector> AddSector(std::vector<ImVec2>&& points) { std::unique_lock lock(Sectors.TailMutex); return { Sectors.Tail.emplace_back(std::move(points)), std::move(lock) }; }
     void Initialize();
 
     ContentObject const* MapLayoutContinent = nullptr;
     ContentObject const* MapLayoutContinentFloor = nullptr;
-    std::vector<Backdrop> UnexploredBackdrops;
-    std::vector<Backdrop> ExploredBackdrops;
-    std::vector<Icon> Icons;
-    std::vector<Sector> Sectors;
+    template<typename T>
+    struct Container
+    {
+        std::vector<T> Elements;
+        std::vector<T> Tail;
+        std::mutex TailMutex;
+
+        void Move()
+        {
+            std::scoped_lock _(TailMutex);
+            if (Tail.empty())
+                return;
+            Elements.append_range(std::views::as_rvalue(Tail));
+            Tail.clear();
+        }
+
+        auto begin() { return Elements.begin(); }
+        auto begin() const { return Elements.begin(); }
+        auto end() { return Elements.end(); }
+        auto end() const { return Elements.end(); }
+    };
+    Container<Backdrop> UnexploredBackdrops;
+    Container<Backdrop> ExploredBackdrops;
+    Container<Icon> Icons;
+    Container<Sector> Sectors;
+    void MoveContainers()
+    {
+        UnexploredBackdrops.Move();
+        ExploredBackdrops.Move();
+        Icons.Move();
+        Sectors.Move();
+    }
     ImRect MapBoundingBox { };
     ImRect MapClampView { };
 
@@ -169,12 +199,18 @@ void MapLayout::AdoptContinent(ContentObject const& object)
 void MapLayout::AddBackdrop(float scale, uint32 unexploredFileID, uint32 exploredFileID, bool water, bool interior)
 {
     if (unexploredFileID)
-        UnexploredBackdrops.emplace_back(G::Game.Archive.GetPackFile(unexploredFileID), scale);
+    {
+        std::scoped_lock _(UnexploredBackdrops.TailMutex);
+        UnexploredBackdrops.Tail.emplace_back(G::Game.Archive.GetPackFile(unexploredFileID), scale);
+    }
     if (exploredFileID)
-        ExploredBackdrops.emplace_back(G::Game.Archive.GetPackFile(exploredFileID), scale, water, interior);
+    {
+        std::scoped_lock _(ExploredBackdrops.TailMutex);
+        ExploredBackdrops.Tail.emplace_back(G::Game.Archive.GetPackFile(exploredFileID), scale, water, interior);
+    }
 }
 
-MapLayout::Icon& MapLayout::AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size)
+MapLayout::Locked<MapLayout::Icon> MapLayout::AddIcon(uint32 textureFileID, ContentObject const& mapDef, ImVec2 mapPosition, ImVec2 size)
 {
     AdoptContinent(mapDef);
 
@@ -199,6 +235,7 @@ void MapLayout::Initialize()
     AddBackdrop( 4.0f, mapDetailsContinentFloor["FileRegionParchment"],    mapDetailsContinentFloor["FileRegionSatellite"],    true);
     AddBackdrop( 2.0f, mapDetailsContinentFloor["FileMapParchment"],       mapDetailsContinentFloor["FileMapSatellite"],       true);
     AddBackdrop( 1.0f, 0,                                                  mapDetailsContinentFloor["FileSectorSatellite"],    true);
+    MoveContainers();
 
     for (ContentObject const& mapLayoutRegion : Data::Map::MapLayout::GetMapLayoutRegions(*MapLayoutContinentFloor))
     {
@@ -213,7 +250,7 @@ void MapLayout::Initialize()
                 return continentRectColor.Min + continentRectColor.GetSize() * ((mapPosition - mapRect.Min) / mapRect.GetSize());
             };
 
-            auto fillSources = [&](ObjectBase& object) -> ObjectBase& { return object.AddSource(*MapLayoutContinentFloor).AddSource(mapLayoutRegion).AddSource(mapLayoutMap); };
+            auto fillSources = [&]<typename T>(Locked<T>&& object) -> ObjectBase& { return object.Object.AddSource(*MapLayoutContinentFloor).AddSource(mapLayoutRegion).AddSource(mapLayoutMap); };
 
             for (ContentObject const& mapLayoutHub : mapLayoutMap["Hub->Name"])
                 fillSources(AddIcon(961377, convertPosition(mapLayoutHub["WorldPosition"]), 32)).AddSource(mapLayoutHub);
@@ -278,8 +315,9 @@ void MapLayout::Initialize()
             }
         }
     }
+    MoveContainers();
 
-    for (auto* backdrops : { &UnexploredBackdrops, &ExploredBackdrops })
+    for (auto* backdrops : { &UnexploredBackdrops.Elements, &ExploredBackdrops.Elements })
     {
         for (auto& backdrop : *backdrops)
         {
@@ -319,6 +357,7 @@ void MapLayout::Initialize()
                     MapBoundingBox.Add(layer.ContentsRect);
         }
     }
+    MoveContainers();
 
     ImVec2i const clampViewMin = mapDetailsContinentFloor["ClampViewMin"];
     ImVec2i const clampViewMax = mapDetailsContinentFloor["ClampViewMax"];
@@ -350,6 +389,8 @@ void MapLayout::Draw(std::function<void()> panelCallback)
 {
     if (!Initialized)
         std::terminate();
+
+    MoveContainers();
 
     uint32 const exploredMaskSize = std::sqrt(ExploredMask.size() / 4);
     if (std::exchange(ExploredMaskDirty, false))

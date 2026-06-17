@@ -31,12 +31,12 @@ struct MapLayoutViewer : ViewerWithHistory<MapLayoutViewer, Data::Map::DisplaySe
                 },
                 [this](Data::Map::DisplaySet::ContinentCoords const& target)
                 {
-                    auto& icon = MapLayout.AddIcon(102538, { target.Position.x, target.Position.y }, 32);
+                    auto&& [icon, _] = MapLayout.AddIcon(102538, { target.Position.x, target.Position.y }, 32);
                     icon.Centered = true;
                 },
                 [this](Data::Map::DisplaySet::MapCoords const& target)
                 {
-                    auto& icon = MapLayout.AddIcon(102538, *target.MapDef, { target.PositionFacing.x, target.PositionFacing.y }, 32);
+                    auto&& [icon, _] = MapLayout.AddIcon(102538, *target.MapDef, { target.PositionFacing.x, target.PositionFacing.y }, 32);
                     icon.Centered = true;
                 },
             }, element);
