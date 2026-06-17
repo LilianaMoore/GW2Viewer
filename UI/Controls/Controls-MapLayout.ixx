@@ -223,8 +223,8 @@ void MapLayout::Initialize()
 
             auto fillSources = [&](ObjectBase& object) -> ObjectBase& { return object.AddSource(*MapLayoutContinentFloor).AddSource(mapLayoutRegion).AddSource(mapLayoutMap); };
 
-            for (ContentObject const& mapLayoutOutpost : mapLayoutMap["Outpost->Name"])
-                fillSources(AddIcon(961377, convertPosition(mapLayoutOutpost["WorldPosition"]), 32)).AddSource(mapLayoutOutpost);
+            for (ContentObject const& mapLayoutHub : mapLayoutMap["Hub->Name"])
+                fillSources(AddIcon(961377, convertPosition(mapLayoutHub["WorldPosition"]), 32)).AddSource(mapLayoutHub);
 
             for (ContentObject const& mapLayoutGodShrine : mapLayoutMap["GodShrine->Name"])
                 fillSources(AddIcon(347219, convertPosition(mapLayoutGodShrine["WorldPosition"]), 32)).AddSource(mapLayoutGodShrine);
