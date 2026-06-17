@@ -2,93 +2,126 @@ export module GW2Viewer.Data.External.Database;
 import GW2Viewer.Common;
 import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
-import GW2Viewer.Content.Conversation;
-import GW2Viewer.Content.Event;
-import GW2Viewer.Content.MapCinematic;
-import GW2Viewer.Content.MysticForgeEntry;
-import GW2Viewer.Content.Vendor;
-import GW2Viewer.Data.Encryption.Asset;
-import GW2Viewer.Data.Game;
-import GW2Viewer.UI.Manager;
-import GW2Viewer.UI.Viewers.ConversationListViewer;
-import GW2Viewer.UI.Viewers.EventListViewer;
-import GW2Viewer.UI.Viewers.ListViewer;
-import GW2Viewer.UI.Viewers.MapCinematicListViewer;
-import GW2Viewer.UI.Viewers.MysticForgeEntryListViewer;
-import GW2Viewer.UI.Viewers.StringListViewer;
-import GW2Viewer.UI.Viewers.VendorListViewer;
-import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async.ProgressBarContext;
 import GW2Viewer.Utils.Enum;
+import GW2Viewer.Utils.Thread;
 import std;
 import sqlite_modern_cpp;
-import <gsl/gsl>;
+import <concurrentqueue/blockingconcurrentqueue.h>;
 
-export namespace GW2Viewer::Data::External
+namespace GW2Viewer::Data::External
 {
 
-struct LoadingOperation
+template<typename T> struct CoerceArgumentType { using Type = T; };
+template<> struct CoerceArgumentType<uint64> { using Type = sqlite_uint64; };
+template<> struct CoerceArgumentType<int64> { using Type = sqlite_int64; };
+template<> struct CoerceArgumentType<Degrees> { using Type = float; };
+template<> struct CoerceArgumentType<Radians> { using Type = float; };
+template<> struct CoerceArgumentType<GUID> { using Type = std::vector<byte>; };
+template<Enumeration Enum> struct CoerceArgumentType<Enum> { using Type = std::underlying_type_t<Enum>; };
+
+struct OperationCancelledException { };
+struct OperationOptions
 {
-    struct Options
-    {
-        std::string Joins = "";
-        std::string Condition = "1";
-        std::shared_mutex* SharedMutex = nullptr;
-        std::function<void()> PostHandler = nullptr;
-    };
-
-    std::string Table;
-
-    LoadingOperation(std::string_view table) : Table(table) { }
-
-    virtual ~LoadingOperation() = default;
-    virtual void Process(sqlite::database& db, Utils::Async::ProgressBarContext* progress = nullptr) = 0;
-    virtual void PostProcess() = 0;
-
-    static auto Make(std::string_view table, std::string_view columns, auto&& handler, Options&& options = { });
+    std::string Joins = "";
+    size_t Limit = 0;
+    std::shared_mutex* SharedMutex = nullptr;
+    std::function<void()> PostHandler = nullptr;
 };
+struct OperationBase
+{
+    std::string Table;
+    OperationOptions Options;
+    bool volatile Cancelled = false;
+    bool Running = false;
+
+    OperationBase(std::string_view table, OperationOptions&& options) : Table(table), Options(std::move(options)) { }
+    virtual ~OperationBase() = default;
+    void Process(sqlite::database& db, Utils::Async::ProgressBarContext* progress, Time::Duration busyTimeout)
+    {
+        Running = true;
+        if (Options.SharedMutex)
+            Options.SharedMutex->lock();
+
+        sqlite3_progress_handler(db.connection().get(), 1000, [](void* operation) { return +((OperationBase*)operation)->Cancelled; }, this);
+        while (!Cancelled)
+        {
+            try { ProcessImpl(db, progress); break; }
+            catch (sqlite::errors::busy const&) { Utils::Thread::Sleep(busyTimeout); }
+            catch (sqlite::errors::interrupt const&) { break; }
+            catch (OperationCancelledException const&) { break; }
+        }
+        sqlite3_progress_handler(db.connection().get(), 0, nullptr, nullptr);
+
+        if (Options.SharedMutex)
+            Options.SharedMutex->unlock();
+
+        PostProcessImpl();
+        Running = false;
+    }
+
+protected:
+    virtual void ProcessImpl(sqlite::database& db, Utils::Async::ProgressBarContext* progress) = 0;
+    virtual void PostProcessImpl();
+};
+
 template<typename... Args>
-struct LoadingOperationT : LoadingOperation
+struct QueryOperation : OperationBase
 {
     std::string Columns;
+    std::string Condition;
     std::function<void(Args...)> Handler;
-    Options Options;
-    std::string Query = std::format("SELECT {}._rowid_, {} FROM {} {} WHERE {}._rowid_ > ? AND ({})", Table, Columns, Table, Options.Joins, Table, Options.Condition);
-    std::string QueryMax = std::format("SELECT MAX({}._rowid_) FROM {}", Table, Table);
+    std::string Query = std::format("SELECT {} FROM {} {} WHERE {}{}", Columns, Table, Options.Joins, Condition, Options.Limit ? std::format(" LIMIT {}", Options.Limit) : "");
+    size_t LoadedRows = 0;
+
+    QueryOperation(std::string_view table, std::string_view columns, std::string_view condition, std::function<void(Args...)>&& handler, OperationOptions&& options) : OperationBase(table, std::move(options)), Columns(columns), Condition(condition), Handler(std::move(handler)) { }
+
+    void ProcessImpl(sqlite::database& db, Utils::Async::ProgressBarContext* progress) override
+    {
+        db << Query >> [this, progress, processed = 0, nextUpdate = Time::FrameStart](typename CoerceArgumentType<std::decay_t<Args>>::Type... args) mutable
+        {
+            if (Cancelled)
+                throw OperationCancelledException();
+
+            Handler(((Args)args)...);
+            ++LoadedRows;
+            if (progress && Time::FrameStart >= nextUpdate)
+            {
+                *progress = LoadedRows;
+                nextUpdate = Time::FrameStart + 50ms;
+            }
+        };
+        if (progress)
+            progress->Start(LoadedRows, LoadedRows);
+    }
+};
+
+template<typename... Args>
+struct LoadingOperation : QueryOperation<Args...>
+{
+    using Base = QueryOperation<Args...>;
+
+    std::string QueryMax = std::format("SELECT MAX({}._rowid_) FROM {}", Base::Table, Base::Table);
     sqlite_int64 MaxRowID = -1;
     sqlite_int64 CurrentRowID = -1;
     sqlite_int64 LastCurrentRowID = -1;
 
-    LoadingOperationT(std::string_view table, std::string_view columns, std::function<void(Args...)>&& handler, LoadingOperation::Options&& options) : LoadingOperation(table), Columns(columns), Handler(std::move(handler)), Options(std::move(options)) { }
+    LoadingOperation(std::string_view table, std::string_view columns, std::function<void(Args...)>&& handler, OperationOptions&& options) : Base(table, std::format("{}._rowid_, {}", table, columns), std::format("{}._rowid_ > ?", table), std::move(handler), std::move(options)) { }
 
-    template<typename T> struct CoerceArgumentType { using Type = T; };
-    template<> struct CoerceArgumentType<uint64> { using Type = sqlite_uint64; };
-    template<> struct CoerceArgumentType<int64> { using Type = sqlite_int64; };
-    template<> struct CoerceArgumentType<Degrees> { using Type = float; };
-    template<> struct CoerceArgumentType<Radians> { using Type = float; };
-    template<> struct CoerceArgumentType<GUID> { using Type = std::vector<byte>; };
-    template<Enumeration Enum> struct CoerceArgumentType<Enum> { using Type = std::underlying_type_t<Enum>; };
-
-    void Process(sqlite::database& db, Utils::Async::ProgressBarContext* progress) override
+    void ProcessImpl(sqlite::database& db, Utils::Async::ProgressBarContext* progress) override
     {
-        if (Options.SharedMutex)
-            Options.SharedMutex->lock();
-
-        auto _ = gsl::finally([this]
-        {
-            if (Options.SharedMutex)
-                Options.SharedMutex->unlock();
-        });
-
         if (progress)
         {
             db << QueryMax >> MaxRowID;
-            progress->Start(Table, MaxRowID);
+            progress->Start(Base::Table, MaxRowID);
         }
 
-        db << Query << CurrentRowID >> [this, progress, processed = 0, interval = std::max<uint32>(1, MaxRowID / 1000), nextUpdate = Time::FrameStart](sqlite_int64 rowID, typename CoerceArgumentType<std::decay_t<Args>>::Type... args) mutable
+        db << Base::Query << CurrentRowID >> [this, progress, processed = 0, interval = std::max<uint32>(1, MaxRowID / 1000), nextUpdate = Time::FrameStart](sqlite_int64 rowID, typename CoerceArgumentType<std::decay_t<Args>>::Type... args) mutable
         {
-            Handler(((Args)args)...);
+            if (Base::Cancelled)
+                throw OperationCancelledException();
+
+            Base::Handler(((Args)args)...);
             CurrentRowID = std::max(CurrentRowID, rowID);
             if (progress)
             {
@@ -99,320 +132,147 @@ struct LoadingOperationT : LoadingOperation
                 }
             }
         };
+        if (progress)
+            *progress = MaxRowID;
     }
-    void PostProcess() override
+    void PostProcessImpl() override
     {
         if (LastCurrentRowID != CurrentRowID)
         {
             LastCurrentRowID = CurrentRowID;
-            if (Options.PostHandler)
-                G::UI.Defer(std::function(Options.PostHandler));
+            OperationBase::PostProcessImpl();
         }
     }
 };
-auto LoadingOperation::Make(std::string_view table, std::string_view columns, auto&& handler, Options&& options)
+
+export
 {
-    return std::unique_ptr<LoadingOperation>(new LoadingOperationT(table, columns, std::function(handler), std::move(options)));
-}
+
+// Calling QueryToken::Cancel() or destroying QueryToken will issue a cancel request to the
+// underlying query and block until the query finishes, but will not interrupt any ongoing
+// callbacks. When storing QueryToken inside a class, prefer to place them at the end, so they
+// get destroyed first, before destroying any other resources that might be used by the callback.
+struct QueryToken
+{
+    QueryToken() { }
+    QueryToken(std::shared_ptr<OperationBase> const& operation) : m_operation(operation) { }
+    QueryToken(QueryToken const&) = delete;
+    QueryToken(QueryToken&&) = delete;
+    ~QueryToken() { Cancel(); }
+
+    QueryToken& operator=(QueryToken const&) = delete;
+    QueryToken& operator=(QueryToken&& source) noexcept
+    {
+        m_operation = std::move(source.m_operation);
+        m_cancelled = std::exchange(source.m_cancelled, true);
+        return *this;
+    }
+
+    void Cancel()
+    {
+        if (m_cancelled)
+            return;
+        m_cancelled = true;
+
+        if (auto operation = m_operation.lock())
+        {
+            operation->Cancelled = true;
+            Utils::Thread::SleepWhile(10ms, [&] { return operation->Running; });
+        }
+    }
+
+private:
+    std::weak_ptr<OperationBase> m_operation;
+    bool m_cancelled = false;
+};
 
 class Database
 {
+    static constexpr size_t CONCURRENT_COMMAND_WORKERS = 5;
+
 public:
+    QueryToken Query(std::string_view table, std::string_view columns, std::string_view condition, auto&& handler, OperationOptions&& options)
+    {
+        return { AddCommand(std::shared_ptr<OperationBase>(new QueryOperation(table, columns, condition, std::function(handler), std::move(options)))) };
+    }
+    void Load(std::string_view table, std::string_view columns, auto&& handler, OperationOptions&& options)
+    {
+        Loading.Operations.emplace_back(new LoadingOperation(table, columns, std::function(handler), std::move(options)));
+    }
+
     void Load(std::filesystem::path const& path, Utils::Async::ProgressBarContext& progress)
     {
-        namespace Content = GW2Viewer::Content;
-
-        auto updateConversationSearch = [] { G::Viewers::Notify(&UI::Viewers::ConversationListViewer::UpdateSearch); };
-        auto updateEventFilter = [] { G::Viewers::Notify(&UI::Viewers::EventListViewer::UpdateFilter); };
-        auto updateVendorSearch = [] { G::Viewers::Notify(&UI::Viewers::VendorListViewer::UpdateSearch); };
-        auto updateMapCinematicSearch = [] { G::Viewers::Notify(&UI::Viewers::MapCinematicListViewer::UpdateSearch); };
-
-        using namespace sqlite;
-        static database db(path.u16string(), { .flags = OpenFlags::READONLY });
-        static std::unique_ptr<LoadingOperation> operations[]
-        {
-            LoadingOperation::Make("Texts",
-                "TextID, Key, Time, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
-                [](uint32 TextID, uint64 Key, uint32 Time, uint32 Session, std::optional<uint32> Map, std::optional<float> ClientX, std::optional<float> ClientY, std::optional<float> ClientZ, std::optional<float> ClientFacing)
-                {
-                    if (Map)
-                        G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, { *ClientX, *ClientY, *ClientZ, *ClientFacing }, *Map, Session } });
-                    else
-                        G::Game.Encryption.AddTextKeyInfo(TextID, { Key, { (uint64)Time * 1000, Session } });
-                },
-                {
-                    .Condition = "Key",
-                    .SharedMutex = &G::Game.Encryption.Mutex(),
-                    .PostHandler = [=]
-                    {
-                        G::Viewers::ForEach<UI::Viewers::StringListViewer>([](UI::Viewers::StringListViewer& viewer)
-                        {
-                            if (!viewer.FilterString.empty() && !viewer.FilterID || viewer.FilteredList.empty())
-                                viewer.UpdateSearch();
-                            else if (viewer.Sort == UI::Viewers::StringListViewer::StringSort::Text || viewer.Sort == UI::Viewers::StringListViewer::StringSort::DecryptionTime)
-                                viewer.UpdateSort();
-                        });
-                    },
-                }
-            ),
-            LoadingOperation::Make("Assets",
-                "AssetType, AssetID, Key",
-                [](Encryption::AssetType AssetType, uint32 AssetID, uint64 key)
-                {
-                    G::Game.Encryption.AddAssetKey(AssetType, AssetID, key);
-                    if (AssetType == Encryption::AssetType::Voice)
-                        G::Game.Voice.WipeCache(AssetID);
-                },
-                {
-                    .Condition = "Key",
-                    .SharedMutex = &G::Game.Encryption.Mutex(),
-                }
-            ),
-            LoadingOperation::Make("Conversations",
-                "GenID, UID, FirstEncounteredTime, LastEncounteredTime",
-                [](uint32 GenID, uint32 UID, uint32 FirstEncounteredTime, uint32 LastEncounteredTime)
-                {
-                    Content::conversations[GenID].UID = UID;
-                },
-                {
-                    .SharedMutex = &Content::conversationsLock,
-                    .PostHandler = updateConversationSearch,
-                }
-            ),
-            LoadingOperation::Make("ConversationStates",
-                "GenID, StateID, TextID, SpeakerNameTextID, SpeakerPortraitOverrideFileID, Priority, Flags, Voting, Timeout, CostAmount, CostType, Unk",
-                [](uint32 GenID, uint32 StateID, uint32 TextID, uint32 SpeakerNameTextID, uint32 SpeakerPortraitOverrideFileID, uint32 Priority, uint32 Flags, uint32 Voting, uint32 Timeout, uint32 CostAmount, uint32 CostType, uint32 Unk)
-                {
-                    Content::conversations[GenID].States.emplace(StateID, TextID, SpeakerNameTextID, SpeakerPortraitOverrideFileID, Priority, Flags, Voting, Timeout, CostAmount, CostType, Unk);
-                },
-                {
-                    .SharedMutex = &Content::conversationsLock,
-                    .PostHandler = updateConversationSearch,
-                }
-            ),
-            LoadingOperation::Make("ConversationStateTransitions",
-                "GenID, StateID, StateTextID, TransitionID, TextID, CostAmount, CostType, CostKarma, Diplomacy, Unk, Personality, Icon, SkillDefDataID",
-                [](uint32 GenID, uint32 StateID, uint32 StateTextID, int32 TransitionID, uint32 TextID, uint32 CostAmount, uint32 CostType, uint32 CostKarma, uint32 Diplomacy, uint32 Unk, uint32 Personality, uint32 Icon, uint32 SkillDefDataID)
-                {
-                    for (auto& state : Content::conversations[GenID].States | std::views::filter([StateID, StateTextID](auto const& state) { return state.StateID == StateID && state.TextID == StateTextID; }))
-                        state.Transitions.emplace(TransitionID, TextID, CostAmount, CostType, CostKarma, Diplomacy, Unk, Personality, Icon, SkillDefDataID);
-                },
-                {
-                    .SharedMutex = &Content::conversationsLock,
-                    .PostHandler = updateConversationSearch,
-                }
-            ),
-            LoadingOperation::Make("ConversationStateTransitionTargets",
-                "GenID, StateID, StateTextID, TransitionID, TransitionTextID, TargetStateID, Flags",
-                [](uint32 GenID, uint32 StateID, uint32 StateTextID, int32 TransitionID, uint32 TransitionTextID, int32 TargetStateID, uint32 Flags)
-                {
-                    for (auto& state : Content::conversations[GenID].States | std::views::filter([StateID, StateTextID](auto const& state) { return state.StateID == StateID && state.TextID == StateTextID; }))
-                        for (auto& transition : state.Transitions | std::views::filter([TransitionID, TransitionTextID](auto const& transition) { return transition.TransitionID == TransitionID && transition.TextID == TransitionTextID; }))
-                            transition.Targets.emplace(TargetStateID, Flags);
-                },
-                {
-                    .SharedMutex = &Content::conversationsLock,
-                    .PostHandler = updateConversationSearch,
-                }
-            ),
-            LoadingOperation::Make("AgentConversation",
-                "Time, MapSession, AgentX, AgentY, AgentZ, AgentFacing, ConversationGenID, ConversationStateID, ConversationStateTextID, ConversationStateTransitionID, ConversationStateTransitionTextID, Session, Map",
-                [](uint64 Time, uint32 MapSession, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint32 ConversationGenID, uint32 ConversationStateID, uint32 ConversationStateTextID, int32 ConversationStateTransitionID, int32 ConversationStateTransitionTextID, uint32 Session, uint32 Map)
-                {
-                    auto& conversation = Content::conversations[ConversationGenID];
-                    conversation.Encounter = { Time, { AgentX, AgentY, AgentZ, AgentFacing }, Map, MapSession, Session };
-
-                    for (auto& state : conversation.States | std::views::filter([ConversationStateID, ConversationStateTextID](auto const& state) { return state.StateID == ConversationStateID && state.TextID == ConversationStateTextID; }))
-                    {
-                        state.Encounter = conversation.Encounter;
-
-                        if (ConversationStateTransitionTextID != -1)
-                            for (auto& transition : state.Transitions | std::views::filter([ConversationStateTransitionID, ConversationStateTransitionTextID](auto const& transition) { return transition.TransitionID == ConversationStateTransitionID && transition.TextID == ConversationStateTransitionTextID; }))
-                                transition.Encounter = conversation.Encounter;
-                    }
-                },
-                {
-                    .SharedMutex = &Content::conversationsLock,
-                    .PostHandler = updateConversationSearch,
-                }
-            ),
-            LoadingOperation::Make("Vendors",
-                "Hash, NameTextID, IconFileID, Time",
-                [](uint64 Hash, uint32 NameTextID, uint32 IconFileID, uint64 Time)
-                {
-                    auto& vendor = Content::vendors[Hash];
-                    vendor.NameTextID = NameTextID;
-                    vendor.IconFileID = IconFileID;
-                    vendor.Encounter = Time;
-                },
-                {
-                    .SharedMutex = &Content::vendorsLock,
-                    .PostHandler = updateVendorSearch,
-                }),
-            LoadingOperation::Make("VendorServiceTabs",
-                "Hash, ServiceType, TabIndex, CurrencyType, CurrencyDefDataID, ItemDefDataID, CurrencyTypeSecondary, CurrencyDefSecondaryDataID, ItemDefSecondaryDataID, IconFileID, NameTextID, Type, Time",
-                [](uint64 Hash, uint32 ServiceType, uint32 TabIndex, uint32 CurrencyType, uint32 CurrencyDefDataID, uint32 ItemDefDataID, uint32 CurrencyTypeSecondary, uint32 CurrencyDefSecondaryDataID, uint32 ItemDefSecondaryDataID, uint32 IconFileID, uint32 NameTextID, uint32 Type, uint64 Time)
-                {
-                    Content::vendors[Hash].ServiceTabs.emplace(ServiceType, TabIndex, CurrencyType, CurrencyDefDataID, ItemDefDataID, CurrencyTypeSecondary, CurrencyDefSecondaryDataID, ItemDefSecondaryDataID, IconFileID, NameTextID, Type);
-                },
-                {
-                    .SharedMutex = &Content::vendorsLock,
-                    .PostHandler = updateVendorSearch,
-                }),
-            LoadingOperation::Make("VendorInventoryItems",
-                "Hash, ServiceType, TabIndex, Slot, ItemDefDataID, BuyQuantity, Flags, State, UnlockTextID, A, B, TabLimit, TabLimitScope, TabLimitLifetime, ProgressDefDataID, CostDetails, Time",
-                [](uint64 Hash, uint32 ServiceType, uint32 TabIndex, uint32 Slot, uint32 ItemDefDataID, uint32 BuyQuantity, uint32 Flags, uint32 State, uint32 UnlockTextID, uint32 A, uint32 B, int32 TabLimit, uint32 TabLimitScope, uint32 TabLimitLifetime, uint32 ProgressDefDataID, std::vector<byte> const& CostDetails, uint64 Time)
-                {
-                    for (auto& tab : Content::vendors[Hash].ServiceTabs | std::views::filter([ServiceType, TabIndex](auto const& tab) { return tab.ServiceType == ServiceType && tab.TabIndex == TabIndex; }))
-                    {
-                        using Currency = Content::Vendor::ServiceTab::InventoryItem::Currency;
-                        assert(!(CostDetails.size() % sizeof(Currency)));
-                        auto& item = *tab.InventoryItems.emplace(Slot, ItemDefDataID, BuyQuantity, Flags, State, UnlockTextID, A, B, TabLimit, TabLimitScope, TabLimitLifetime, ProgressDefDataID, std::vector((Currency const*)CostDetails.data(), (Currency const*)(CostDetails.data() + CostDetails.size()))).first;
-                        item.Encounter = Time;
-                    }
-                },
-                {
-                    .SharedMutex = &Content::vendorsLock,
-                    .PostHandler = updateVendorSearch,
-                }),
-            LoadingOperation::Make("AgentVendor",
-                "Time, MapSession, AgentID, AgentX, AgentY, AgentZ, AgentFacing, VendorHash, VendorServiceType, VendorTabIndex, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
-                [](uint64 Time, uint32 MapSession, std::optional<uint32> AgentID, std::optional<float> AgentX, std::optional<float> AgentY, std::optional<float> AgentZ, std::optional<float> AgentFacing, uint64 VendorHash, uint32 VendorServiceType, uint32 VendorTabIndex, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
-                {
-                    auto& vendor = Content::vendors[VendorHash];
-                    vendor.Encounter = { Time, { AgentX.value_or(ClientX), AgentY.value_or(ClientY), AgentZ.value_or(ClientZ), AgentFacing.value_or(ClientFacing) }, Map, MapSession, Session };
-
-                    for (auto& tab : vendor.ServiceTabs | std::views::filter([VendorHash, VendorServiceType, VendorTabIndex](auto const& tab) { return tab.ServiceType == VendorServiceType && tab.TabIndex == VendorTabIndex; }))
-                        tab.Encounter = vendor.Encounter;
-                },
-                {
-                    .SharedMutex = &Content::vendorsLock,
-                    .PostHandler = updateVendorSearch,
-                }),
-            LoadingOperation::Make("MapCinematics",
-                "Hash, UID, Flags, Groups, Objects, Sectors, Time",
-                [](uint64 Hash, uint32 UID, uint32 Flags, std::vector<byte> const& Groups, std::vector<byte> const& Objects, std::vector<byte> const& Sectors, uint64 Time)
-                {
-                    using Group = Content::MapCinematic::Group;
-                    using Object = Content::MapCinematic::Object;
-                    using Sector = Content::MapCinematic::Sector;
-                    assert(!(Groups.size() % sizeof(Group)));
-                    assert(!(Objects.size() % sizeof(Object)));
-                    assert(!(Sectors.size() % sizeof(Sector)));
-                    auto& mapCinematic = Content::mapCinematics[Hash];
-                    mapCinematic.UID = UID;
-                    mapCinematic.Flags = Flags;
-                    mapCinematic.Groups = { (Group const*)Groups.data(), (Group const*)(Groups.data() + Groups.size()) };
-                    mapCinematic.Objects = { (Object const*)Objects.data(), (Object const*)(Objects.data() + Objects.size()) };
-                    mapCinematic.Sectors = { (Sector const*)Sectors.data(), (Sector const*)(Sectors.data() + Sectors.size()) };
-                    mapCinematic.Encounter = Time;
-                },
-                {
-                    .SharedMutex = &Content::mapCinematicsLock,
-                    .PostHandler = updateMapCinematicSearch,
-                }),
-            LoadingOperation::Make("AgentMapCinematic",
-                "Time, MapSession, AgentID, AgentX, AgentY, AgentZ, AgentFacing, MapCinematicHash, Session, Map, ClientX, ClientY, ClientZ, ClientFacing",
-                [](uint64 Time, uint32 MapSession, uint32 AgentID, float AgentX, float AgentY, float AgentZ, float AgentFacing, uint64 MapCinematicHash, uint32 Session, uint32 Map, float ClientX, float ClientY, float ClientZ, float ClientFacing)
-                {
-                    auto& mapCinematic = Content::mapCinematics[MapCinematicHash];
-                    mapCinematic.Encounter = { Time, { AgentX, AgentY, AgentZ, AgentFacing }, Map, MapSession, Session };
-                },
-                {
-                    .SharedMutex = &Content::mapCinematicsLock,
-                    .PostHandler = updateMapCinematicSearch,
-                }),
-            LoadingOperation::Make("MysticForgeEntries",
-                "GameBuild, UID, GameMode, Ingredients, Time",
-                [](uint32 GameBuild, uint32 UID, uint32 GameMode, std::vector<byte> const& Ingredients, uint64 Time)
-                {
-                    assert(Ingredients.size() == sizeof(Content::MysticForgeEntry::Ingredients));
-                    auto& mysticForgeEntry = Content::mysticForgeEntries[{ GameBuild, UID }];
-                    mysticForgeEntry.GameMode = GameMode;
-                    for (auto&& [index, stored] : mysticForgeEntry.Ingredients | std::views::enumerate)
-                        if (stored.IngredientType == Content::MYSTIC_FORGE_INGREDIENT_TYPES)
-                            stored = ((struct Content::MysticForgeEntry::Ingredient const*)Ingredients.data())[index];
-                    mysticForgeEntry.Encounter = Time;
-                },
-                {
-                    .SharedMutex = &Content::mysticForgeEntriesLock,
-                    .PostHandler = [] { G::Viewers::Notify(&UI::Viewers::MysticForgeEntryListViewer::UpdateSearch); },
-                }),
-            LoadingOperation::Make("Events",
-                "Map, UID, TitleTextID, TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A, Time",
-                [](uint32 Map, uint32 UID, uint32 TitleTextID, uint32 TitleParameterTextID1, uint32 TitleParameterTextID2, uint32 TitleParameterTextID3, uint32 TitleParameterTextID4, uint32 TitleParameterTextID5, uint32 TitleParameterTextID6, uint32 DescriptionTextID, uint32 FileIconID, Content::Event::State::ClientFlags FlagsClient, Content::Event::State::ServerFlags FlagsServer, uint32 Level, uint32 MetaTextTextID, GUID const& AudioEffect, uint32 A, uint64 Time)
-                {
-                    Content::events[{ Map, UID }].States.emplace(Map, UID, TitleTextID, std::array { TitleParameterTextID1, TitleParameterTextID2, TitleParameterTextID3, TitleParameterTextID4, TitleParameterTextID5, TitleParameterTextID6 }, DescriptionTextID, FileIconID, FlagsClient, FlagsServer, Level, MetaTextTextID, AudioEffect, A).first->Encounter = Time;
-                },
-                {
-                    .SharedMutex = &Content::eventsLock,
-                    .PostHandler = updateEventFilter,
-                }
-            ),
-            LoadingOperation::Make("Objectives",
-                "Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob, Time",
-                [](uint32 Map, uint32 EventUID, uint32 EventObjectiveIndex, uint32 Type, uint32 Flags, uint32 TargetCount, uint32 TextID, uint32 AgentNameTextID, GUID const& ProgressBarStyle, uint32 ExtraInt, uint32 ExtraInt2, GUID const& ExtraGUID, GUID const& ExtraGUID2, std::vector<byte> const& ExtraBlob, uint64 Time)
-                {
-                    Content::events[{ Map, EventUID }].Objectives.emplace(Map, EventUID, EventObjectiveIndex, Type, Flags, TargetCount, TextID, AgentNameTextID, ProgressBarStyle, ExtraInt, ExtraInt2, ExtraGUID, ExtraGUID2, ExtraBlob).first->Encounter = Time;
-                },
-                {
-                    .SharedMutex = &Content::eventsLock,
-                    .PostHandler = updateEventFilter,
-                }
-            ),
-            LoadingOperation::Make("ObjectiveAgents",
-                "ObjectiveMap, ObjectiveEventUID, ObjectiveEventObjectiveIndex, ObjectiveAgentIndex, ObjectiveAgentID, IFNULL(NULLIF(ObjectiveAgentNameTextID, 0), NameTextID), ObjectiveAgentX, ObjectiveAgentY, ObjectiveAgentZ, ObjectiveAgentFacing",
-                [](uint32 ObjectiveMap, uint32 ObjectiveEventUID, uint32 ObjectiveEventObjectiveIndex, uint32 ObjectiveAgentIndex, uint32 ObjectiveAgentID, uint32 ObjectiveAgentNameTextID, float ObjectiveAgentX, float ObjectiveAgentY, float ObjectiveAgentZ, float ObjectiveAgentFacing)
-                {
-                    for (auto& objective : Content::events[{ ObjectiveMap, ObjectiveEventUID }].Objectives | std::views::filter([ObjectiveEventObjectiveIndex](auto const& objective) { return objective.EventObjectiveIndex == ObjectiveEventObjectiveIndex; }))
-                    {
-                        objective.Agents.resize(std::max<size_t>(objective.Agents.size(), ObjectiveAgentIndex + 1));
-                        objective.Agents.at(ObjectiveAgentIndex) = { ObjectiveAgentID, ObjectiveAgentNameTextID };
-                    }
-                },
-                {
-                    .Joins = "LEFT JOIN Agents a ON ObjectiveAgents.Session=a.Session AND ObjectiveAgents.MapSession=a.MapSession AND ObjectiveAgents.ObjectiveAgentID=a.AgentID",
-                    .SharedMutex = &Content::eventsLock,
-                    .PostHandler = updateEventFilter,
-                }
-            ),
-        };
-        static bool exitRequested = false;
-        static auto load = [](Utils::Async::ProgressBarContext* progress)
-        {
-            while (!exitRequested)
-            {
-                for (auto&& operation : operations)
-                {
-                    retry:
-                    try { operation->Process(db, progress ? &progress->GetChild() : nullptr); }
-                    catch (errors::busy const&)
-                    {
-                        std::this_thread::sleep_for(1s);
-                        goto retry;
-                    }
-                    operation->PostProcess();
-
-                    if (progress)
-                        ++*progress;
-                }
-                //for (auto&& operation : operations)
-                //    operation->PostProcess();
-                if (progress)
-                    return;
-                std::this_thread::sleep_for(1s);
-            }
-        };
-        progress.Start("Loading external DB", std::size(operations));
-        load(&progress);
-        static std::thread thread(load, nullptr);
-        std::atexit([]
-        {
-            exitRequested = true;
-            thread.join();
-        });
+        CreateLoadOperations();
+        for (auto& connection : Command)
+            connection.Start(path, progress);
+        Loading.Start(path, progress);
     }
+
+private:
+    struct Connection
+    {
+        std::optional<sqlite::database> Database;
+        std::jthread Thread;
+        bool ExitRequested = false;
+
+        void Start(std::filesystem::path const& path, Utils::Async::ProgressBarContext& progress)
+        {
+            Connect(path);
+            OnLoaded(progress);
+            StartLoop();
+        }
+        virtual ~Connection() { ExitRequested = true; }
+
+    protected:
+        void Connect(std::filesystem::path const& path)
+        {
+            Database = sqlite::database { path.u16string(), { .flags = sqlite::OpenFlags::READONLY } };
+        }
+        void StartLoop()
+        {
+            Thread = std::jthread([this]
+            {
+                while (!ExitRequested)
+                    OnLoop();
+            });
+        }
+
+        virtual void OnLoaded(Utils::Async::ProgressBarContext& progress) { }
+        virtual void OnLoop() = 0;
+    };
+
+    struct CommandConnection : Connection
+    {
+        void OnLoop() override;
+    } Command[CONCURRENT_COMMAND_WORKERS];
+    moodycamel::BlockingConcurrentQueue<std::shared_ptr<OperationBase>> CommandQueue;
+    std::shared_ptr<OperationBase> AddCommand(std::shared_ptr<OperationBase> command);
+
+    struct : Connection
+    {
+        std::list<std::unique_ptr<OperationBase>> Operations;
+
+        void OnLoaded(Utils::Async::ProgressBarContext& progress) override
+        {
+            progress.Start("Loading external DB", Operations.size());
+            for (auto&& operation : Operations)
+            {
+                operation->Process(*Database, &progress.GetChild(), 1s);
+                ++progress;
+            }
+        }
+        void OnLoop() override
+        {
+            for (auto&& operation : Operations)
+                operation->Process(*Database, nullptr, 1s);
+
+            Utils::Thread::Sleep(1s);
+        }
+    } Loading;
+    void CreateLoadOperations();
 };
+
+}
 
 }
 
