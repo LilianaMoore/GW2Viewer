@@ -104,7 +104,7 @@ public:
                 if (m_notification)
                 {
                     m_notification->Close();
-                    Thread::SleepUntil(10ms, [&] { return m_notification->HasClosed(); });
+                    Thread::SleepUntil(10ms, [&, timeout = Time::Now() + 5s] { return m_notification->HasClosed() || Time::Now() > timeout; });
                     m_notification.reset();
                 }
             }
@@ -145,17 +145,11 @@ private:
             if (auto const description = GetDescription(); !description.empty())
                 I::TextWrapped("%s", description.c_str());
 
-            if (IsIndeterminate())
-            {
-                I::ProgressBar(-I::GetTime(), { -FLT_MIN, 8 }, "");
-            }
-            else
-            {
-                auto [p, current, total] = GetProgress();
+            auto [p, current, total] = GetProgress();
+            if (current || total)
                 if (scoped::WithStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2()))
-                    I::Text("<c=#8>%zu / %zu</c>", current, total);
-                I::ProgressBar(p, { -FLT_MIN, 8 }, "");
-            }
+                    I::Text(total ? "<c=#8>%zu / %zu</c>" : "<c=#8>%zu</c>", current, total);
+            I::ProgressBar(IsIndeterminate() ? -I::GetTime() : p, { -FLT_MIN, 8 }, "");
 
             if (m_child)
                 m_child->Draw(notification, true);
