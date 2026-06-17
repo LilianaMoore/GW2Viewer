@@ -1,5 +1,6 @@
 export module GW2Viewer.Utils.Async;
 import GW2Viewer.Common;
+import GW2Viewer.Utils.Thread;
 import std;
 
 export namespace GW2Viewer::Utils::Async
@@ -37,7 +38,7 @@ struct Scheduler
         std::scoped_lock _(m_lock);
         return m_current && !m_current->Cancelled ? *m_current : ProgressContext { true };
     }
-    void Run(auto&& task)
+    void Run(std::string_view name, auto&& task)
     {
         std::scoped_lock _(m_lock);
         if (auto const previous = std::exchange(m_current, std::make_shared<Context::element_type>()))
@@ -48,7 +49,11 @@ struct Scheduler
         else
             m_runningTasks.clear(); // This joins the ongoing task thread and waits for its completion, which should be fast thanks to many cancellation checks
 
-        m_runningTasks.emplace_back(std::async(std::launch::async, std::move(task), m_current));
+        m_runningTasks.emplace_back(Thread::Async(std::format("Async: {}", name), std::move(task), m_current));
+    }
+    void Run(auto&& task, std::source_location const location = std::source_location::current())
+    {
+        Run(location.function_name(), std::move(task));
     }
 
 private:

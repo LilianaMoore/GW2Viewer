@@ -18,6 +18,7 @@ import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
+import GW2Viewer.Utils.Thread;
 import std;
 import magic_enum;
 #include "Macros.h"
@@ -155,8 +156,7 @@ struct FileListViewer : ListViewer<FileListViewer, { ICON_FA_FILE " Files", "Fil
         {
             context->SetIndeterminate();
             for (auto const& index : G::ArchiveIndex)
-                while (!index.IsLoaded())
-                    std::this_thread::sleep_for(100ms);
+                Utils::Thread::SleepUntil(100ms, [&] { return index.IsLoaded(); });
             auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
             limits.first = std::max(0, limits.first);
             std::vector data { std::from_range, G::Game.Archive.GetFiles() | std::views::filter([limits, type](File const& file)

@@ -19,6 +19,7 @@ import GW2Viewer.Utils.Async;
 import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
+import GW2Viewer.Utils.Thread;
 import GW2Viewer.Utils.Visitor;
 import std;
 import <gsl/gsl>;
@@ -227,17 +228,13 @@ struct ContentListViewer : ListViewer<ContentListViewer, { ICON_FA_FOLDER_TREE "
             {
                 for (uint32 delay = 0; delay < 10; ++delay)
                 {
-                    std::this_thread::sleep_for(50ms);
+                    Utils::Thread::Sleep(50ms);
                     CHECK_ASYNC;
                 }
             }
 
             context->SetIndeterminate();
-            while (!G::Game.Content.AreObjectsLoaded())
-            {
-                std::this_thread::sleep_for(50ms);
-                CHECK_ASYNC;
-            }
+            Utils::Thread::SleepUntil(50ms, [] { return G::Game.Content.AreObjectsLoaded(); });
 
             CHECK_ASYNC;
             filter.FilteredNamespaces.resize(G::Game.Content.GetNamespaces().size(), Data::Content::ContentFilter::UNCACHED_RESULT);

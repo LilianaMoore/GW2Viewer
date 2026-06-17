@@ -2,6 +2,7 @@
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Pack;
 import GW2Viewer.Utils.ScanPE;
+import GW2Viewer.Utils.Thread;
 
 namespace GW2Viewer::Data
 {
@@ -28,8 +29,7 @@ void Game::Load(std::filesystem::path const& path, Utils::Async::ProgressBarCont
     }
 
     progress.Start("Searching for embedded filenames", scanner.text.size());
-    while (!G::Game.Archive.IsLoaded())
-        std::this_thread::sleep_for(50ms);
+    Utils::Thread::SleepUntil(50ms, [] { return G::Game.Archive.IsLoaded(); });
 
     for (byte const* p = scanner.text.begin(); p != scanner.text.end() - 7; ++p)
     {

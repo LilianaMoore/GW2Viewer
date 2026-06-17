@@ -16,6 +16,7 @@ import GW2Viewer.Utils.Format;
 import GW2Viewer.Utils.Scan;
 import GW2Viewer.Utils.Sort;
 import GW2Viewer.Utils.String;
+import GW2Viewer.Utils.Thread;
 import std;
 import <ctype.h>;
 #include "Macros.h"
@@ -128,8 +129,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         AsyncFilter.Run([this, textSearch, filter = FilterID, string = FilterString, filters = Filters, sort = Sort, invert = SortInvert](Utils::Async::Context context) mutable
         {
             context->SetIndeterminate();
-            while (!G::Game.Text.IsLoaded(G::Config.Language))
-                std::this_thread::sleep_for(100ms);
+            Utils::Thread::SleepUntil(100ms, [] { return G::Game.Text.IsLoaded(G::Config.Language); });
             auto limits = filter.value_or(std::pair { std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max() });
             limits.first = std::max(0, limits.first);
             limits.second = std::min((int32)G::Game.Text.GetMaxID() - 1, limits.second);

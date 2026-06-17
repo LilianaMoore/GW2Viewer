@@ -6,6 +6,7 @@ import GW2Viewer.Common.Time;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Notifications;
 import GW2Viewer.Utils.Encoding;
+import GW2Viewer.Utils.Thread;
 import std;
 #include "Macros.h"
 
@@ -91,9 +92,9 @@ public:
         return *m_child;
     }
 
-    ProgressBarContext& Run(std::function<void(ProgressBarContext&)>&& func)
+    ProgressBarContext& Run(std::string_view name, std::function<void(ProgressBarContext&)>&& func)
     {
-        m_task = std::async(std::launch::async, [this, func = std::move(func)](ProgressBarContext& context)
+        m_task = Thread::Async(std::format("Async.ProgressBarContext: {}", name), [this, func = std::move(func)](ProgressBarContext& context)
         {
             try
             {
@@ -103,8 +104,7 @@ public:
                 if (m_notification)
                 {
                     m_notification->Close();
-                    while (!m_notification->HasClosed())
-                        std::this_thread::sleep_for(10ms);
+                    Thread::SleepUntil(10ms, [&] { return m_notification->HasClosed(); });
                     m_notification.reset();
                 }
             }
@@ -118,6 +118,10 @@ public:
             }
         }, std::ref(*this));
         return *this;
+    }
+    ProgressBarContext& Run(std::function<void(ProgressBarContext&)>&& func, std::source_location const location = std::source_location::current())
+    {
+        return Run(location.function_name(), std::move(func));
     }
     ProgressBarContext& ShowNotification()
     {
