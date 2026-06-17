@@ -84,6 +84,7 @@ struct MapLayout
     struct IconBase
     {
         uint32 TextureFileID;
+        Radians Rotation;
     };
     struct Icon : IconBase, ObjectBase
     {
@@ -601,7 +602,7 @@ float4 main(PS_INPUT input) : SV_Target
             float const scale = std::clamp(ViewportScale, 0.5f, 1.0f);
             if (scoped::WithCursorScreenPos(ImRoundIf(project(icon.BoundingBox.GetCenter()) - icon.BoundingBox.GetSize() / 2 * scale, scale == 1.0f)))
             {
-                Texture(icon.TextureFileID, { .Size = icon.BoundingBox.GetSize() * scale, .FullPreviewOnHover = false, .AdvanceCursor = false });
+                Texture(icon.TextureFileID, { .Size = icon.BoundingBox.GetSize() * scale, .Rotation = icon.Rotation, .FullPreviewOnHover = false, .AdvanceCursor = false });
                 if (scoped::ItemTooltip(ImGuiHoveredFlags_DelayNone))
                     I::TextUnformatted(icon.Tooltip.c_str());
             }
