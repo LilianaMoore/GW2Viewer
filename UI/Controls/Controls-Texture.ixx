@@ -14,6 +14,7 @@ struct TextureOptions
     std::vector<byte> const* Data;
     ImVec4 Color { 1, 1, 1, 1 };
     ImVec2 Size { };
+    Radians Rotation { };
     ImRect UV { 0, 0, 1, 1 };
     std::optional<ImRect> UV2;
     bool PreserveAspectRatio = true;
@@ -66,6 +67,19 @@ bool Texture(uint32 textureFileID, TextureOptions const& options = { })
 
             if (push_texture_id)
                 draw.PopTexture();
+        }
+        else if (options.Rotation)
+        {
+            auto const cos = options.Rotation.GetCos();
+            auto const sin = options.Rotation.GetSin();
+            ImRect const rect { bb.Min + offset, bb.Max - offset };
+            ImVec2 const rotatedSize { rect.GetWidth() * std::abs(cos) + rect.GetHeight() * std::abs(sin), rect.GetWidth() * std::abs(sin) + rect.GetHeight() * std::abs(cos) };
+            ImVec2 points[] { rect.GetTL(), rect.GetTR(), rect.GetBR(), rect.GetBL() };
+            auto const center = rect.GetCenter();
+            auto const scale = std::min(rect.GetWidth() / rotatedSize.x, rect.GetHeight() / rotatedSize.y);
+            for (auto& point : points)
+                point = ImRotate((point - center) * scale, cos, sin) + center;
+            draw.AddImageQuad(texture->Texture->Handle, points[0], points[1], points[2], points[3], options.UV.GetTL(), options.UV.GetTR(), options.UV.GetBR(), options.UV.GetBL(), I::ColorConvertFloat4ToU32(options.Color));
         }
         else
             draw.AddImage(texture->Texture->Handle, bb.Min + offset, bb.Max - offset, options.UV.Min, options.UV.Max, I::ColorConvertFloat4ToU32(options.Color));

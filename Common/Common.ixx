@@ -43,4 +43,41 @@ enum class Sex
     Max
 };
 
+struct Radians;
+struct Degrees
+{
+    Degrees() { }
+    Degrees(float degrees) : m_degrees(degrees) { }
+    Degrees(Radians const& radians);
+
+    float GetDegrees() const { return m_degrees; }
+    float GetRadians() const { return m_degrees / 180.0f * std::numbers::pi_v<float>; }
+    float GetCos() const { return std::cos(GetRadians()); }
+    float GetSin() const { return std::sin(GetRadians()); }
+
+    operator bool() const { return m_degrees != 0.0f; }
+    operator float() const { return m_degrees; }
+
+private:
+    float m_degrees = 0.0f;
+};
+struct Radians
+{
+    Radians() { }
+    Radians(float radians) : m_radians(radians) { }
+    Radians(Degrees const& degrees) : Radians(degrees.GetRadians()) { }
+
+    float GetDegrees() const { return m_radians * 180.0f / std::numbers::pi_v<float>; }
+    float GetRadians() const { return m_radians; }
+    float GetCos() const { return std::cos(GetRadians()); }
+    float GetSin() const { return std::sin(GetRadians()); }
+
+    operator bool() const { return m_radians != 0.0f; }
+    operator float() const { return m_radians; }
+
+private:
+    float m_radians = 0.0f;
+};
+Degrees::Degrees(Radians const& radians) : m_degrees(radians.GetDegrees()) { }
+
 }

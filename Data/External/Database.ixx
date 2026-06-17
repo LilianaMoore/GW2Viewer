@@ -66,6 +66,8 @@ struct LoadingOperationT : LoadingOperation
     template<typename T> struct CoerceArgumentType { using Type = T; };
     template<> struct CoerceArgumentType<uint64> { using Type = sqlite_uint64; };
     template<> struct CoerceArgumentType<int64> { using Type = sqlite_int64; };
+    template<> struct CoerceArgumentType<Degrees> { using Type = float; };
+    template<> struct CoerceArgumentType<Radians> { using Type = float; };
     template<> struct CoerceArgumentType<GUID> { using Type = std::vector<byte>; };
     template<Enumeration Enum> struct CoerceArgumentType<Enum> { using Type = std::underlying_type_t<Enum>; };
 
