@@ -11,6 +11,7 @@ import GW2Viewer.Data.Text.Hash;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Windows.Window;
+import GW2Viewer.Utils.Base64;
 import GW2Viewer.Utils.ConstString;
 import GW2Viewer.Utils.Encoding;
 import GW2Viewer.Utils.Scan;
@@ -37,6 +38,17 @@ struct Parse : Window
             Conversion<"uint64", "hex", uint64, hex<uint64>>({
                 .ConvertLR = [](uint64 const& in, hex<uint64>& out) { out = in; },
                 .ConvertRL = [](hex<uint64> const& in, uint64& out) { out = in; },
+            });
+            Conversion<"ImGui 0xAABBGGRR", "GW2 0xAARRGGBB", hex<uint32>, hex<uint32>>({
+                .ConvertLR = [](hex<uint32> const& in, hex<uint32>& out) { out = IM_COL32(in.Value >> 16 & 0xFF, in.Value >> 8 & 0xFF, in.Value & 0xFF, in.Value >> 24 & 0xFF); },
+                .ConvertRL = [](hex<uint32> const& in, hex<uint32>& out) { out = IM_COL32(in.Value >> 16 & 0xFF, in.Value >> 8 & 0xFF, in.Value & 0xFF, in.Value >> 24 & 0xFF); },
+                .DrawR = [](hex<uint32> const& hex)
+                {
+                    auto color = I::ColorConvertU32ToFloat4(hex);
+                    std::swap(color.x, color.z);
+                    I::SetNextItemWidth(-FLT_MIN);
+                    I::ColorEdit4("##Color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf);
+                },
             });
             Conversion<"uint64", "Token32", uint32, Token32>({
                 .ConvertLR = [](uint32 const& in, Token32& out) { out = *(Token32*)&in; },
@@ -75,6 +87,10 @@ struct Parse : Window
             });
             Conversion<"wstring", "Format String", std::wstring, std::wstring>({
                 .ConvertLR = [](std::wstring const& in, std::wstring& out) { out = Data::Text::FormatStringEmpty(in); },
+            });
+            Conversion<"hex[]", "Base64", std::vector<byte>, std::string>({
+                .ConvertLR = [](std::vector<byte> const& in, std::string& out) { out = Utils::Base64::Encode({ (char const*)in.data(), in.size() }); },
+                .ConvertRL = [](std::string const& in, std::vector<byte>& out) { out.assign_range(Utils::Base64::Decode(in)); },
             });
 
             Separator();
@@ -158,6 +174,7 @@ struct Parse : Window
             },
             [](std::string_view in, std::array<byte, 16>& out)
             {
+                out.fill(0);
                 for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
                     if (!Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
                         return false;
@@ -165,6 +182,7 @@ struct Parse : Window
             },
             [](std::string_view in, std::array<uint32, 4>& out)
             {
+                out.fill(0);
                 for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
                     if (!Utils::Scan::NumberLiteral(std::string_view(i), "{}", o) && !Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
                         return false;
@@ -172,9 +190,18 @@ struct Parse : Window
             },
             [](std::string_view in, std::array<uint64, 2>& out)
             {
+                out.fill(0);
                 for (auto&& [i, o] : std::views::zip(in | std::views::split(" "sv), out))
                     if (!Utils::Scan::NumberLiteral(std::string_view(i), "{}", o) && !Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
                         return false;
+                return true;
+            },
+            [](std::string_view in, std::vector<byte>& out)
+            {
+                out.clear();
+                for (auto&& i : in | std::views::split(" "sv))
+                    if (byte o; Utils::Scan::NumberLiteral(std::string_view(i), "{:x}", o))
+                        out.emplace_back(o);
                 return true;
             },
             []<std::integral T>(std::string_view in, T& out)
@@ -222,6 +249,7 @@ struct Parse : Window
             [](std::array<byte, 16> const& in) { return std::format("{:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}", in[0], in[1], in[2], in[3], in[4], in[5], in[6], in[7], in[8], in[9], in[10], in[11], in[12], in[13], in[14], in[15]); },
             [](std::array<uint32, 4> const& in) { return std::format("0x{:X} 0x{:X} 0x{:X} 0x{:X}", in[0], in[1], in[2], in[3]); },
             [](std::array<uint64, 2> const& in) { return std::format("0x{:X} 0x{:X}", in[0], in[1]); },
+            [](std::vector<byte> const& in) { return std::format("{:s}", std::views::join_with(in | std::views::transform([](byte b) { return std::format("{:02X}", b); }), " "sv)); },
             [](std::string_view const& in) { return in; },
             [](std::wstring_view const& in) { return Utils::Encoding::ToUTF8(in); },
         };
