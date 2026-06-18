@@ -1,4 +1,4 @@
-export module GW2Viewer.Tasks.StartupLoading;
+export module GW2Viewer.Services.StartupLoading;
 import GW2Viewer.Common;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Archive;
@@ -18,9 +18,8 @@ import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Async.ProgressBarContext;
 import std;
 import magic_enum;
-#include "Macros.h"
 
-export namespace GW2Viewer::Tasks
+export namespace GW2Viewer::Services
 {
 
 struct StartupLoading
@@ -327,4 +326,4 @@ private:
 
 }
 
-export namespace GW2Viewer::G::Tasks { GW2Viewer::Tasks::StartupLoading StartupLoading; }
+export namespace GW2Viewer::G::Services { GW2Viewer::Services::StartupLoading StartupLoading; }

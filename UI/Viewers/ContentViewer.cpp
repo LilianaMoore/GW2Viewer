@@ -2,7 +2,7 @@
 import GW2Viewer.Common.GUID;
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Game;
-import GW2Viewer.Tasks.ContentObjectDisplayFormat;
+import GW2Viewer.Services.ContentObjectDisplayFormat;
 import GW2Viewer.UI.Controls;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Manager;
@@ -97,7 +97,7 @@ void ContentViewer::Draw()
                 bool focused = retainFocus || I::GetCurrentContext()->NavId == I::GetID("##Display Format");
                 if (scoped::DisableMarkup())
                 if (scoped::Font(G::UI.Fonts.Monospace))
-                    I::InputTextEx("##Display Format", G::Tasks::ContentObjectDisplayFormat.GetDefault(), &typeInfo.DisplayFormat, { -FLT_MIN, std::max(I::GetFrameHeight(), I::GetStyle().FramePadding.y * 2 + std::min(focused ? FLT_MAX : I::GetTextLineHeight() * 1.5f, I::CalcTextSize(typeInfo.DisplayFormat.c_str()).y + (typeInfo.DisplayFormat.back() == '\n' ? I::GetTextLineHeight() : 0))) }, ImGuiInputTextFlags_Multiline);
+                    I::InputTextEx("##Display Format", G::Services::ContentObjectDisplayFormat.GetDefault(), &typeInfo.DisplayFormat, { -FLT_MIN, std::max(I::GetFrameHeight(), I::GetStyle().FramePadding.y * 2 + std::min(focused ? FLT_MAX : I::GetTextLineHeight() * 1.5f, I::CalcTextSize(typeInfo.DisplayFormat.c_str()).y + (typeInfo.DisplayFormat.back() == '\n' ? I::GetTextLineHeight() : 0))) }, ImGuiInputTextFlags_Multiline);
                 focused &= I::GetIO().WantCaptureKeyboard || I::IsItemActiveAsInputText();
                 auto const rect = I::LastRect();
                 retainFocus = false;
@@ -109,8 +109,8 @@ void ContentViewer::Draw()
                         std::pair<char const*, char const*> tabs[]
                         {
                             { "Hide Help", nullptr },
-                            { "Syntax", G::Tasks::ContentObjectDisplayFormat.GetSyntaxHelp() },
-                            { "Markup", G::Tasks::ContentObjectDisplayFormat.GetMarkupHelp() },
+                            { "Syntax", G::Services::ContentObjectDisplayFormat.GetSyntaxHelp() },
+                            { "Markup", G::Services::ContentObjectDisplayFormat.GetMarkupHelp() },
                         };
                         for (auto const [tab, text] : tabs)
                         {

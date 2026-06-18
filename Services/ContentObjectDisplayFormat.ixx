@@ -1,4 +1,4 @@
-export module GW2Viewer.Tasks.ContentObjectDisplayFormat;
+export module GW2Viewer.Services.ContentObjectDisplayFormat;
 import GW2Viewer.Common;
 import GW2Viewer.Data.Content;
 import GW2Viewer.Data.Encryption;
@@ -8,7 +8,7 @@ import <boost/container/small_vector.hpp>;
 import <gsl/util>;
 #include "Macros.h"
 
-export namespace GW2Viewer::Tasks
+export namespace GW2Viewer::Services
 {
 
 struct ContentObjectDisplayFormat
@@ -45,11 +45,11 @@ private:
 
 }
 
-export namespace GW2Viewer::G::Tasks { GW2Viewer::Tasks::ContentObjectDisplayFormat ContentObjectDisplayFormat; }
+export namespace GW2Viewer::G::Services { GW2Viewer::Services::ContentObjectDisplayFormat ContentObjectDisplayFormat; }
 
 module :private;
 
-namespace GW2Viewer::Tasks
+namespace GW2Viewer::Services
 {
 
 #define CODE(str) "<c=#FFFF><code>" #str "</code></c>"

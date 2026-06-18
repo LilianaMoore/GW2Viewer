@@ -9,7 +9,7 @@ import GW2Viewer.Content;
 import GW2Viewer.Data.Encryption.Asset;
 import GW2Viewer.Data.Encryption.RC4;
 import GW2Viewer.Data.Game;
-import GW2Viewer.Tasks.StartupLoading;
+import GW2Viewer.Services.StartupLoading;
 import GW2Viewer.UI.ImGui;
 import GW2Viewer.UI.Notifications;
 import GW2Viewer.UI.Viewers.ContentListViewer;
@@ -350,7 +350,7 @@ void Manager::Update()
 
     G::Notifications.Draw();
     G::Game.Texture.UploadToGPU();
-    G::Tasks::StartupLoading.Run();
+    G::Services::StartupLoading.Run();
 }
 
 std::string Manager::MakeDataLink(byte type, uint32 id)

@@ -5,7 +5,7 @@
 module GW2Viewer.Data.Content;
 import GW2Viewer.Data.Content.Mangling;
 import GW2Viewer.Data.Encryption;
-import GW2Viewer.Tasks.ContentObjectDisplayFormat;
+import GW2Viewer.Services.ContentObjectDisplayFormat;
 import GW2Viewer.User.Config;
 import GW2Viewer.Utils.Encoding;
 
@@ -83,10 +83,10 @@ std::wstring ContentObject::GetDisplayName(QueryPurpose purpose) const
         if (auto const& typeInfo = Type->GetTypeInfo(); !typeInfo.DisplayFormat.empty() || !typeInfo.NameFields.empty())
         {
             if (traits.DisplayFormat && !typeInfo.DisplayFormat.empty())
-                if (auto const text = G::Tasks::ContentObjectDisplayFormat.Process(*this, purpose, typeInfo.DisplayFormat); !text.empty())
+                if (auto const text = G::Services::ContentObjectDisplayFormat.Process(*this, purpose, typeInfo.DisplayFormat); !text.empty())
                     return Utils::Encoding::FromUTF8(text);
 
-            auto [recursion, guard] = G::Tasks::ContentObjectDisplayFormat.GetRecursionGuard(*this);
+            auto [recursion, guard] = G::Services::ContentObjectDisplayFormat.GetRecursionGuard(*this);
             if (recursion)
                 return recursion;
 
