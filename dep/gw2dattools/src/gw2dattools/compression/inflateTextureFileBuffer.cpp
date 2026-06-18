@@ -71,7 +71,7 @@ namespace gw2dt {
                     aDxtAFormat.pixelSizeInBits = 4;
 
                     Format& aDxtLFormat = sFormats[6];
-                    aDxtLFormat.flags = FF_COLOR;
+                    aDxtLFormat.flags = FF_COLOR | FF_ALPHA | FF_PLAINCOMP;
                     aDxtLFormat.pixelSizeInBits = 8;
 
                     Format& aDxtNFormat = sFormats[7];

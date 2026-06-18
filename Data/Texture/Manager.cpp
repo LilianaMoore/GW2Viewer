@@ -285,7 +285,7 @@ std::unique_ptr<Manager::BoxedImage> Manager::GetTextureRGBAImage(TextureEntry& 
                 case 'DXT4': format = DXGI_FORMAT_BC3_UNORM; miscFlags2 |= TEX_ALPHA_MODE_PREMULTIPLIED; break;
                 case 'DXT5': format = DXGI_FORMAT_BC3_UNORM; miscFlags2 |= TEX_ALPHA_MODE_STRAIGHT; break;
 
-                case 'DXTL': format = DXGI_FORMAT_BC3_UNORM; miscFlags2 |= TEX_ALPHA_MODE_PREMULTIPLIED; break;
+                case 'DXTL': format = DXGI_FORMAT_BC3_UNORM; miscFlags2 |= TEX_ALPHA_MODE_STRAIGHT; break;
 
                 case 'DXTA': format = DXGI_FORMAT_BC4_UNORM; miscFlags2 |= TEX_ALPHA_MODE_OPAQUE; break;
                 case 'BC7X': format = DXGI_FORMAT_BC7_UNORM; miscFlags2 |= TEX_ALPHA_MODE_STRAIGHT; break;
