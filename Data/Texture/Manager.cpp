@@ -103,7 +103,7 @@ namespace GW2Viewer::Data::Texture
 
 std::unique_ptr<Texture> Manager::Create(uint32 width, uint32 height, void const* data)
 {
-    auto* device = G::GraphicsDevice;
+    auto* device = G::Services::Graphics.Device;
     if (!device)
         return nullptr;
 
@@ -192,7 +192,7 @@ uint32 Manager::Load(std::filesystem::path const& localFilePath, LoadTextureOpti
 
 void Manager::UploadToGPU()
 {
-    if (!G::GraphicsDevice)
+    if (!G::Services::Graphics.Device)
         return;
 
     {
@@ -224,7 +224,7 @@ Manager::BoxedImage::~BoxedImage()
 
 std::unique_ptr<Manager::BoxedImage> Manager::GetTextureRGBAImage(TextureEntry& texture)
 {
-    auto const* device = G::GraphicsDevice;
+    auto const* device = G::Services::Graphics.Device;
     if (!device)
         return nullptr;
 

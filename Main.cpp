@@ -14,14 +14,13 @@
 
 import GW2Viewer.Common.Time;
 import GW2Viewer.Data.Game;
-import GW2Viewer.System.Graphics;
+import GW2Viewer.Services.Graphics;
 import GW2Viewer.UI.Manager;
 import GW2Viewer.User.Config;
 
 void Render()
 {
     using namespace GW2Viewer;
-    ImVec4 clear_col = ImColor(0, 0, 0);
 
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -31,8 +30,7 @@ void Render()
 
     // Rendering
     ImGui::Render();
-    G::GraphicsDeviceContext->OMSetRenderTargets(1, &G::RenderTargetView, NULL);
-    G::GraphicsDeviceContext->ClearRenderTargetView(G::RenderTargetView, (float*)&clear_col);
+    G::Services::Graphics.Clear();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     // Update and Render additional Platform Windows
@@ -41,9 +39,7 @@ void Render()
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
     }
-
-    G::SwapChain->Present(1, 0); // Present with vsync
-    //g_pSwapChain->Present(0, 0); // Present without vsync
+    G::Services::Graphics.Present();
 }
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -58,15 +54,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_SIZE:
-        if (G::GraphicsDevice && wParam != SIZE_MINIMIZED)
-        {
-            if (G::RenderTargetView) { G::RenderTargetView->Release(); G::RenderTargetView = nullptr; }
-            G::SwapChain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, 0);
-            ID3D11Texture2D* pBackBuffer;
-            G::SwapChain->GetBuffer(0, (IID&)IID_PPV_ARGS(&pBackBuffer));
-            G::GraphicsDevice->CreateRenderTargetView(pBackBuffer, nullptr, &G::RenderTargetView);
-            pBackBuffer->Release();
-        }
+        if (wParam != SIZE_MINIMIZED)
+            G::Services::Graphics.Resize({ LOWORD(lParam), HIWORD(lParam) });
         return 0;
     case WM_ENTERSIZEMOVE:
         InvalidateRect(hWnd, nullptr, true);
@@ -123,34 +112,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     RegisterClassEx(&wc);
     HWND hwnd = CreateWindow(_T("GW2Viewer Window"), _T("GW2Viewer"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
 
-    // Setup swap chain
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 2;
-    sd.BufferDesc.Width = 0;
-    sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hwnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = 0;
-    //createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-    D3D_FEATURE_LEVEL featureLevel;
-    const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    if (D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &G::SwapChain, &G::GraphicsDevice, &featureLevel, &G::GraphicsDeviceContext) != S_OK)
+    if (!G::Services::Graphics.Start(hwnd))
         return false;
-
-    ID3D11Texture2D* pBackBuffer;
-    G::SwapChain->GetBuffer(0, (IID&)IID_PPV_ARGS(&pBackBuffer));
-    G::GraphicsDevice->CreateRenderTargetView(pBackBuffer, NULL, &G::RenderTargetView);
-    pBackBuffer->Release();
 
     // Show the window
     ShowWindow(hwnd, SW_SHOWDEFAULT);
@@ -166,7 +129,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX11_Init(G::GraphicsDevice, G::GraphicsDeviceContext);
+    ImGui_ImplDX11_Init(G::Services::Graphics.Device, G::Services::Graphics.DeviceContext);
 
     G::Config.Load();
     G::UI.Load();
@@ -237,10 +200,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    if (G::RenderTargetView) { G::RenderTargetView->Release(); G::RenderTargetView = nullptr; }
-    if (G::SwapChain) { G::SwapChain->Release(); G::SwapChain = nullptr; }
-    if (G::GraphicsDeviceContext) { G::GraphicsDeviceContext->Release(); G::GraphicsDeviceContext = nullptr; }
-    if (G::GraphicsDevice) try { G::GraphicsDevice->Release(); G::GraphicsDevice = nullptr; } catch (...) { }
+    G::Services::Graphics.Stop();
     DestroyWindow(hwnd);
     UnregisterClass(_T("GW2Viewer Window"), wc.hInstance);
 

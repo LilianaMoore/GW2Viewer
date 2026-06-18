@@ -1,7 +1,7 @@
 export module GW2Viewer.Data.Texture.Manager;
 import GW2Viewer.Common;
 import GW2Viewer.Data.Texture;
-import GW2Viewer.System.Graphics;
+import GW2Viewer.Services.Graphics;
 import std;
 import <concurrentqueue/blockingconcurrentqueue.h>;
 
