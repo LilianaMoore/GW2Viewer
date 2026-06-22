@@ -23,6 +23,7 @@ static_assert(sizeof(DBBlobElementSpan<void>) == 4);
 struct Encounter
 {
     Time::Point Time;
+    Time::LocalPoint LocalTime = Time::ToLocal(Time);
     std::optional<ImVec4> Position;
     std::optional<uint32> Map;
     std::optional<uint32> MapSession;

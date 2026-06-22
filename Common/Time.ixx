@@ -72,9 +72,10 @@ PointSecs FromTimestamp(Timestamp time) { return ToSecs(Clock::from_time_t(time)
 TimestampMs ToTimestampMs(Point time) { return ToMs(time.time_since_epoch()).count(); }
 Point FromTimestampMs(TimestampMs ms) { return Point { Ms { ms } }; }
 
+auto GetCurrentZone() { static auto zone = std::chrono::current_zone(); return zone; }
 LocalPoint ToLocal(Point time)
 {
-    try { return std::chrono::current_zone()->to_local(time); }
+    try { return GetCurrentZone()->to_local(time); }
     catch (...)
     {
         auto const timestamp = ToTimestamp(time);
@@ -85,7 +86,7 @@ LocalPoint ToLocal(Point time)
 }
 Point FromLocal(LocalPoint time)
 {
-    try { return std::chrono::current_zone()->to_sys(time); }
+    try { return GetCurrentZone()->to_sys(time); }
     catch (...)
     {
         auto const days = ToDays(time);
@@ -124,11 +125,13 @@ void UpdateFrameTime()
     auto const now = PreciseNow();
     Delta = Between<Us>(std::exchange(FrameStart, now), now);
     DeltaSecs = std::max(1z, Cast<Ms>(Delta).count()) / 1000.0f;
+    // TODO: Detect that timezone changed from cached and show a notification suggesting to restart the application
 }
 
 struct Fuzzy
 {
     std::optional<uint32> Year, Month, Day, Hour, Minute, Second;
+    LocalPoint LocalNow = Time::LocalNow();
 
     bool IsValid() const
     {
@@ -156,7 +159,7 @@ struct Fuzzy
 
     LocalPoint GetStartLocal() const
     {
-        std::chrono::year_month_day const nowDate { ToDays(LocalNow()) };
+        std::chrono::year_month_day const nowDate { ToDays(LocalNow) };
         auto const hasTime = HasTime();
         auto const date = std::chrono::year(
             Year .value_or(hasTime || Day || Month ? ( int32)nowDate.year () : 0)) /
@@ -197,10 +200,11 @@ struct Fuzzy
 
     friend bool operator==(LocalPoint local, Fuzzy const& fuzzy)
     {
+        //return local >= fuzzy.GetStartLocal() && local <= fuzzy.GetEndLocal();
         auto const datePoint = ToDays(local);
         std::chrono::year_month_day const date { datePoint };
         std::chrono::hh_mm_ss const time { local - datePoint };
-        std::chrono::year_month_day const nowDate { ToDays(LocalNow()) };
+        std::chrono::year_month_day const nowDate { ToDays(fuzzy.LocalNow) };
         auto const hasTime = fuzzy.HasTime();
         return (!fuzzy.Year  && !(hasTime || fuzzy.Day || fuzzy.Month) || fuzzy.Year .value_or(( int32)nowDate.year ()) == ( int32)date.year ())
             && (!fuzzy.Month && !(hasTime || fuzzy.Day)                || fuzzy.Month.value_or((uint32)nowDate.month()) == (uint32)date.month())

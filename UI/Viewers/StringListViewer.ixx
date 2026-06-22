@@ -91,7 +91,7 @@ struct StringListViewer : ListViewer<StringListViewer, { ICON_FA_TEXT " Strings"
         {
             .Width = 80,
             .PreferSortDescending = true,
-            .Filter = [](uint32 id) { auto info = G::Game.Encryption.GetTextKeyInfo(id); return info ? info->Encounter.Time : Time::Point(); },
+            .Filter = [](uint32 id) { auto info = G::Game.Encryption.GetTextKeyInfo(id); return info ? info->Encounter.LocalTime : Time::LocalPoint(); },
             .Sort = [](decltype(FilteredList)& data, bool invert)
             {
                 Utils::Sort::ComplexSort(data, invert, [](uint32 id) { return G::Game.Encryption.GetTextKeyInfo(id); }, [](uint32 a, uint32 b, auto const& aInfo, auto const& bInfo)
