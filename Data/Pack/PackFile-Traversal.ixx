@@ -57,6 +57,22 @@ public:
     [[nodiscard]] auto const& GetType() const { return *m_type; }
     [[nodiscard]] auto const& GetField() const { return *m_fieldItr; }
 
+    [[nodiscard]] bool IsPtrArrayIterator() const
+    {
+        if (!IsArrayIterator())
+            return false;
+
+        switch (GetField().UnderlyingType)
+        {
+            case UnderlyingTypes::DwordPtrArray:
+            case UnderlyingTypes::WordPtrArray:
+            case UnderlyingTypes::BytePtrArray:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     [[nodiscard]] auto GetPtrTarget() const
     {
         switch (GetField().UnderlyingType)
@@ -274,7 +290,7 @@ public:
             if (IsArrayIterator())
             {
                 ++m_arrayIndex;
-                m_ptr += GetArrayType().Size(m_x64);
+                m_ptr += GetElementSize();
             }
             else
                 m_ptr += m_fieldItr++->Size(m_x64);
@@ -288,7 +304,7 @@ public:
 
 private:
 
-    [[nodiscard]] auto GetElementSize() const { return (IsArrayIterator() ? m_arrayElementType : m_type)->Size(m_x64); }
+    [[nodiscard]] auto GetElementSize() const { return IsPtrArrayIterator() ? GetPackFileTypeSize<GenericPtr>(m_x64) : (IsArrayIterator() ? m_arrayElementType : m_type)->Size(m_x64); }
     [[nodiscard]] auto const& GetElementField() const { return IsArrayIterator() ? m_arrayElementType->Fields.front() : *m_fieldItr; }
 
     FieldIterator(bool end, byte const* ptr, bool x64, Type const* type, TypeFieldIterator field, Type const* arrayElementType, uint32 arraySize, uint32 arrayIndex) :
