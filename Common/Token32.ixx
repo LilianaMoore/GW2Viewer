@@ -52,6 +52,8 @@ public:
 
         return token + 0x30000000;
     }
+
+    auto operator<=>(Token32 const&) const = default;
 };
 
 }

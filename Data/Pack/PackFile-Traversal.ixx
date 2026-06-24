@@ -130,8 +130,10 @@ public:
         {
             case UnderlyingTypes::Byte: return Get<byte>();
             case UnderlyingTypes::Word: return Get<uint16>();
-            case UnderlyingTypes::Dword: return Get<uint32>();
-            case UnderlyingTypes::Qword: return Get<uint64>();
+            case UnderlyingTypes::Dword:
+            case UnderlyingTypes::DwordID: return Get<uint32>();
+            case UnderlyingTypes::Qword:
+            case UnderlyingTypes::QwordID: return Get<uint64>();
             case UnderlyingTypes::FileName:
             case UnderlyingTypes::FileName2: return m_x64 ? Get<FileNameBase<int64>>().GetFileID() : Get<FileNameBase<int32>>().GetFileID();
             default: throw std::exception("FieldIterator::operator T()<std::integral> called for a field of non-integral type");
@@ -191,22 +193,24 @@ public:
             default: throw std::exception("FieldIterator::operator GUID() called for a field of non-GUID type");
         }
     }
-    [[nodiscard]] operator Token32() const
+    [[nodiscard]] operator Token32 const&() const
     {
         switch (GetElementField().UnderlyingType)
         {
             case UnderlyingTypes::Dword:
+            case UnderlyingTypes::DwordID:
                 //if (GetElementField().RealType == RealTypes::Token || GetField().RealType == RealTypes::Token)
                     return Get<Token32>();
                 throw std::exception("FieldIterator::operator Token32() called for a field of non-Token32 type");
             default: throw std::exception("FieldIterator::operator Token32() called for a field of non-dword type");
         }
     }
-    [[nodiscard]] operator Token64() const
+    [[nodiscard]] operator Token64 const&() const
     {
         switch (GetElementField().UnderlyingType)
         {
             case UnderlyingTypes::Qword:
+            case UnderlyingTypes::QwordID:
                 //if (GetElementField().RealType == RealTypes::Token || GetField().RealType == RealTypes::Token)
                     return Get<Token64>();
                 throw std::exception("FieldIterator::operator Token64() called for a field of non-Token64 type");

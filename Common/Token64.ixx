@@ -58,6 +58,8 @@ public:
 
         return token;
     }
+
+    auto operator<=>(Token64 const&) const = default;
 };
 
 }
