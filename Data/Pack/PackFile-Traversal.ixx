@@ -314,7 +314,7 @@ private:
         m_arrayElementType(arrayElementType),
         m_arraySize(arraySize),
         m_arrayIndex(end ? m_arraySize : std::min(arrayIndex, m_arraySize)),
-        m_ptr(ptr + (IsArrayIterator() ? m_arrayIndex : (uint32)end) * GetElementSize()) { }
+        m_ptr(ptr + (IsArrayIterator() ? m_arrayIndex : ptr ? (uint32)end : 0) * GetElementSize()) { }
 
     bool m_x64 { };
     Type const* m_type { };
@@ -336,7 +336,7 @@ concept FieldSearcher = requires(T const a, FieldIterator const& field)
 template<typename T, FieldSearcher<T> Searcher>
 FieldIterator::Generator<T> QueryPackFileFieldsImpl(FieldIterator::Bounds bounds, Searcher searcher)
 {
-    for (auto itr = bounds.first; itr != bounds.second; ++itr)
+    for (auto itr = bounds.first; itr != bounds.second && *itr; ++itr)
     {
         if (!searcher.CanCheck(itr))
             continue;
